@@ -160,11 +160,19 @@ gitops-summary epic [--setup|--status|--update|--map|--labels]
     └── gitops_summary/
         ├── __init__.py
         ├── __main__.py
+        ├── bedrock.py
         ├── cli.py
         ├── commit.py
-        ├── weekly.py
+        ├── config.py
+        ├── docs.py
+        ├── engine.py
         ├── epic.py
-        └── engine.py
+        ├── git_ops.py
+        ├── prompts.py
+        ├── ui.py
+        ├── weekly.py
+        └── workflows/
+            └── __init__.py
 ```
 
 ---
