@@ -14,9 +14,6 @@ MAX_TOKENS_EPIC = 2000
 
 SCRIPT_GENERATED_FILES = {
     ".venv/.gitlab_epic_config.json",
-    "README.md",
-    "git_summary.py",
-    "src/gitops_summary/core.py",
 }
 
 EXCLUDED_SUMMARY_PATHS = {p.replace("\\", "/") for p in SCRIPT_GENERATED_FILES}
