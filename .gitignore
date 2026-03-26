@@ -1,0 +1,17 @@
+# Development
+.idea
+
+# Virtual environment
+.venv/
+
+# Python bytecode/cache
+__pycache__/
+*.py[cod]
+
+# Packaging/build artifacts
+build/
+dist/
+*.egg-info/
+
+# Local secret config created by epic setup
+.venv/.gitlab_epic_config.json
