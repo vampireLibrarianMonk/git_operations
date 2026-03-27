@@ -1,10 +1,10 @@
 """GitLab epic setup/status/update workflows and helpers."""
 
-from datetime import datetime, timedelta
-from getpass import getpass
 import json
 import os
 import sys
+from datetime import datetime, timedelta
+from getpass import getpass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -13,6 +13,7 @@ from .config import GITLAB_CONFIG_FILE, MAX_TOKENS_EPIC
 from .git_ops import run_git_command_allow_failure
 from .prompts import _clean_commit_message, build_mapping_prompt, build_status_update_prompt
 from .ui import Spinner, prompt_yes_no
+
 
 def load_gitlab_config() -> Optional[Dict[str, Any]]:
     """Load GitLab configuration from .venv directory."""
@@ -25,12 +26,14 @@ def load_gitlab_config() -> Optional[Dict[str, Any]]:
         print(f"[epic] Warning: Could not load config: {e}")
         return None
 
+
 def save_gitlab_config(config: Dict[str, Any]) -> None:
     """Save GitLab configuration to .venv directory."""
     GITLAB_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(GITLAB_CONFIG_FILE, "w") as f:
         json.dump(config, f, indent=2)
     print(f"[epic] Configuration saved to {GITLAB_CONFIG_FILE}")
+
 
 def ensure_gitignore_entry() -> str:
     """Ensure .gitignore protects the local GitLab secret config."""
@@ -67,20 +70,24 @@ def ensure_gitignore_entry() -> str:
             added.append(path)
 
     if not added:
-        return f".gitignore already contains all required entries"
+        return ".gitignore already contains all required entries"
 
     return f"Added to .gitignore: {', '.join(added)}"
+
 
 def get_gitlab_client(url: str, token: str):
     """Create and return authenticated GitLab client."""
     try:
         import gitlab
     except ImportError:
-        print("[epic] Error: python-gitlab not installed. Run: pip install python-gitlab")
+        print(
+            "[epic] Error: python-gitlab not installed. Run: pip install python-gitlab",
+        )
         sys.exit(1)
 
     gl = gitlab.Gitlab(url, private_token=token)
     return gl
+
 
 def test_gitlab_connection(url: str, token: str) -> tuple[bool, str, Any]:
     """Test GitLab connection and permissions. Returns (success, message, client)."""
@@ -99,6 +106,7 @@ def test_gitlab_connection(url: str, token: str) -> tuple[bool, str, Any]:
     except Exception as e:
         return False, f"Connection failed: {e}", None
 
+
 def find_epic(gl, project_path: str, epic_iid: int) -> tuple[bool, str, Any, Any]:
     """Find epic in project's group. Returns (success, message, project, epic)."""
     try:
@@ -111,8 +119,13 @@ def find_epic(gl, project_path: str, epic_iid: int) -> tuple[bool, str, Any, Any
     except Exception as e:
         return False, f"Could not find epic #{epic_iid}: {e}", None, None
 
-def _extract_workflow_status(labels: List[str], state: str, health_status: Optional[str] = None,
-                             board_workflow_labels: List[str] = None) -> str:
+
+def _extract_workflow_status(
+    labels: List[str],
+    state: str,
+    health_status: Optional[str] = None,
+    board_workflow_labels: List[str] = None,
+) -> str:
     """Extract workflow status from GitLab health_status, board labels, or state."""
 
     # Priority 1: Check health_status attribute (GitLab Premium feature)
@@ -169,6 +182,7 @@ def _extract_workflow_status(labels: List[str], state: str, health_status: Optio
         return "Closed"
     return "Open"
 
+
 def _normalize_status(status: str) -> str:
     """Normalize status string for comparison."""
     # Convert to lowercase, replace separators with spaces, strip
@@ -186,9 +200,11 @@ def _normalize_status(status: str) -> str:
     }
     return mappings.get(normalized, normalized.replace(" ", "_"))
 
+
 def _statuses_match(status1: str, status2: str) -> bool:
     """Check if two statuses are effectively the same."""
     return _normalize_status(status1) == _normalize_status(status2)
+
 
 def _get_current_status_label(labels: List[str]) -> Optional[str]:
     """Extract the current status:: label from issue labels."""
@@ -196,6 +212,7 @@ def _get_current_status_label(labels: List[str]) -> Optional[str]:
         if label.lower().startswith("status::"):
             return label
     return None
+
 
 def _labels_match(label1: Optional[str], label2: Optional[str]) -> bool:
     """Check if two labels are the same (case-insensitive)."""
@@ -205,7 +222,12 @@ def _labels_match(label1: Optional[str], label2: Optional[str]) -> bool:
         return False
     return label1.lower() == label2.lower()
 
-def get_board_workflow_labels(gl, project_id: int = None, group_id: int = None) -> List[str]:
+
+def get_board_workflow_labels(
+    gl,
+    project_id: int = None,
+    group_id: int = None,
+) -> List[str]:
     """Fetch board list labels to identify workflow status labels."""
     workflow_labels = []
 
@@ -217,13 +239,20 @@ def get_board_workflow_labels(gl, project_id: int = None, group_id: int = None) 
             for board in boards:
                 lists = board.lists.list()
                 for lst in lists:
-                    if hasattr(lst, 'label') and lst.label:
-                        label_name = lst.label.get('name') if isinstance(lst.label, dict) else getattr(lst.label,
-                                                                                                       'name', None)
+                    if hasattr(lst, "label") and lst.label:
+                        label_name = (
+                            lst.label.get("name")
+                            if isinstance(lst.label, dict)
+                            else getattr(
+                                lst.label,
+                                "name",
+                                None,
+                            )
+                        )
                         if label_name and label_name not in workflow_labels:
                             workflow_labels.append(label_name)
-        except Exception:
-            pass
+        except Exception as _exc:
+            _ = _exc
 
     # Also try group boards
     if group_id:
@@ -233,17 +262,30 @@ def get_board_workflow_labels(gl, project_id: int = None, group_id: int = None) 
             for board in boards:
                 lists = board.lists.list()
                 for lst in lists:
-                    if hasattr(lst, 'label') and lst.label:
-                        label_name = lst.label.get('name') if isinstance(lst.label, dict) else getattr(lst.label,
-                                                                                                       'name', None)
+                    if hasattr(lst, "label") and lst.label:
+                        label_name = (
+                            lst.label.get("name")
+                            if isinstance(lst.label, dict)
+                            else getattr(
+                                lst.label,
+                                "name",
+                                None,
+                            )
+                        )
                         if label_name and label_name not in workflow_labels:
                             workflow_labels.append(label_name)
-        except Exception:
-            pass
+        except Exception as _exc:
+            _ = _exc
 
     return workflow_labels
 
-def get_epic_issues(gl, group_id: int, epic_iid: int, project_id: int = None) -> List[Dict]:
+
+def get_epic_issues(
+    gl,
+    group_id: int,
+    epic_iid: int,
+    project_id: int = None,
+) -> List[Dict]:
     """Get all issues linked to an epic with full details."""
     try:
         group = gl.groups.get(group_id)
@@ -269,19 +311,21 @@ def get_epic_issues(gl, group_id: int, epic_iid: int, project_id: int = None) ->
             if issue_project_id:
                 try:
                     if issue_project_id not in project_cache:
-                        project_cache[issue_project_id] = gl.projects.get(issue_project_id)
+                        project_cache[issue_project_id] = gl.projects.get(
+                            issue_project_id,
+                        )
                     project = project_cache[issue_project_id]
 
                     full_issue = project.issues.get(issue.iid)
 
                     # Get state from full issue (more accurate)
-                    if hasattr(full_issue, 'state'):
+                    if hasattr(full_issue, "state"):
                         issue_state = full_issue.state
 
-                    if hasattr(full_issue, 'labels'):
+                    if hasattr(full_issue, "labels"):
                         full_labels = full_issue.labels
-                    if hasattr(full_issue, 'attributes'):
-                        health_status = full_issue.attributes.get('health_status')
+                    if hasattr(full_issue, "attributes"):
+                        health_status = full_issue.attributes.get("health_status")
 
                     # Try to get status from labels (status:: scoped labels)
                     # Note: GitLab's "Status" UI field requires Ultimate and isn't exposed via API
@@ -291,7 +335,7 @@ def get_epic_issues(gl, group_id: int, epic_iid: int, project_id: int = None) ->
                             work_item_status = label.split("::", 1)[1]
                             break
                 except Exception:
-                    pass
+                    full_labels = issue.labels
 
             # Determine workflow status
             if work_item_status:
@@ -299,39 +343,62 @@ def get_epic_issues(gl, group_id: int, epic_iid: int, project_id: int = None) ->
             elif health_status:
                 workflow_status = health_status.replace("_", " ").title()
             else:
-                workflow_status = _extract_workflow_status(full_labels, issue_state, None, group_workflow_labels)
+                workflow_status = _extract_workflow_status(
+                    full_labels,
+                    issue_state,
+                    None,
+                    group_workflow_labels,
+                )
 
-            result.append({
-                "iid": issue.iid,
-                "project_id": issue_project_id,
-                "title": issue.title,
-                "state": issue_state,
-                "health_status": health_status,
-                "workflow_status": workflow_status,
-                "labels": full_labels,
-                "web_url": issue.web_url,
-                "description": getattr(issue, "description", ""),
-            })
+            result.append(
+                {
+                    "iid": issue.iid,
+                    "project_id": issue_project_id,
+                    "title": issue.title,
+                    "state": issue_state,
+                    "health_status": health_status,
+                    "workflow_status": workflow_status,
+                    "labels": full_labels,
+                    "web_url": issue.web_url,
+                    "description": getattr(issue, "description", ""),
+                },
+            )
         return result
     except Exception as e:
         print(f"[epic] Error fetching issues: {e}")
         return []
+
 
 def get_project_structure() -> str:
     """Get project directory structure for LLM analysis."""
     structure = []
     for root, dirs, files in os.walk("."):
         # Skip hidden dirs and common non-code dirs
-        dirs[:] = [d for d in dirs if not d.startswith(".") and d not in
-                   ["venv", "__pycache__", "node_modules", ".git", "example_data", "example_reports"]]
+        dirs[:] = [
+            d
+            for d in dirs
+            if not d.startswith(".")
+            and d
+            not in [
+                "venv",
+                "__pycache__",
+                "node_modules",
+                ".git",
+                "example_data",
+                "example_reports",
+            ]
+        ]
         level = root.replace(".", "").count(os.sep)
         indent = "  " * level
         folder = os.path.basename(root) or "."
         structure.append(f"{indent}{folder}/")
         for file in files:
-            if not file.startswith(".") and file.endswith((".py", ".md", ".yml", ".yaml", ".json")):
+            if not file.startswith(".") and file.endswith(
+                (".py", ".md", ".yml", ".yaml", ".json"),
+            ):
                 structure.append(f"{indent}  {file}")
     return "\n".join(structure[:100])  # Limit output
+
 
 def map_issues_to_paths(config: Dict, gl) -> Dict[str, List[str]]:
     """Use LLM to map issues to code paths."""
@@ -362,11 +429,13 @@ def map_issues_to_paths(config: Dict, gl) -> Dict[str, List[str]]:
         print(f"[epic] Error generating mappings: {e}")
     return {}
 
+
 def epic_setup() -> int:
     """Interactive setup for GitLab epic tracking."""
     # Check for python-gitlab first
     try:
         import gitlab  # noqa: F401
+
         print("[epic] python-gitlab package found")
     except ImportError:
         print("[epic] Error: python-gitlab not installed.")
@@ -380,10 +449,12 @@ def epic_setup() -> int:
     # Check for existing config
     existing = load_gitlab_config()
     if existing:
-        print(f"\nExisting configuration found:")
+        print("\nExisting configuration found:")
         print(f"  URL: {existing.get('url')}")
         print(f"  Project: {existing.get('project_path')}")
-        print(f"  Epic: #{existing.get('epic_iid')} - {existing.get('epic_title', 'Unknown')}")
+        print(
+            f"  Epic: #{existing.get('epic_iid')} - {existing.get('epic_title', 'Unknown')}",
+        )
         if not prompt_yes_no("\nReconfigure?"):
             return 0
 
@@ -413,7 +484,9 @@ def epic_setup() -> int:
 
     # Get project path
     print("\n[Step 3/4] Project Path")
-    print("  Format: namespace/project (e.g., AWSProServe/opir/data-operations-insights-dashboard)")
+    print(
+        "  Format: namespace/project (e.g., AWSProServe/opir/data-operations-insights-dashboard)",
+    )
     project_path = input("  Enter project path: ").strip()
     if not project_path:
         print("  Error: Project path is required")
@@ -476,11 +549,12 @@ def epic_setup() -> int:
     print("  gitops-summary epic --update   # Update issues")
     return 0
 
+
 def get_recent_commits_for_paths(
-        paths: List[str],
-        days: int = 7,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+    paths: List[str],
+    days: int = 7,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
 ) -> List[Dict]:
     """Get recent commits affecting specified paths."""
     if start_date and end_date:
@@ -510,17 +584,19 @@ def get_recent_commits_for_paths(
                 parts = line.split(DELIM)
                 if len(parts) >= 4:
                     # Take only the first line of the subject if multi-line
-                    subject = parts[1].split('\n')[0].strip()
+                    subject = parts[1].split("\n")[0].strip()
                     # Clean up malformed AI-generated commit messages
                     subject = _clean_commit_message(subject)
-                    commits.append({
-                        "hash": parts[0][:8],
-                        "full_hash": parts[0],  # Keep full hash for URLs
-                        "message": subject,
-                        "author": parts[2],
-                        "date": parts[3][:10],
-                        "path": path,
-                    })
+                    commits.append(
+                        {
+                            "hash": parts[0][:8],
+                            "full_hash": parts[0],  # Keep full hash for URLs
+                            "message": subject,
+                            "author": parts[2],
+                            "date": parts[3][:10],
+                            "path": path,
+                        },
+                    )
 
     # Deduplicate by hash
     seen = set()
@@ -530,6 +606,7 @@ def get_recent_commits_for_paths(
             seen.add(c["hash"])
             unique.append(c)
     return unique
+
 
 def epic_status() -> int:
     """Display current epic and issue status."""
@@ -557,7 +634,12 @@ def epic_status() -> int:
 
     # Get issues
     spinner.start("[epic] Fetching issues...")
-    issues = get_epic_issues(gl, config["group_id"], config["epic_iid"], config.get("project_id"))
+    issues = get_epic_issues(
+        gl,
+        config["group_id"],
+        config["epic_iid"],
+        config.get("project_id"),
+    )
     spinner.stop()
 
     mappings = config.get("mappings", {}).get("mappings", [])
@@ -572,8 +654,8 @@ def epic_status() -> int:
         commits = get_recent_commits_for_paths(paths) if paths else []
 
         # Get status label and other labels separately
-        status_label = _get_current_status_label(issue.get('labels', []))
-        other_labels = [l for l in issue.get('labels', []) if not l.lower().startswith('status::')]
+        status_label = _get_current_status_label(issue.get("labels", []))
+        other_labels = [label_name for label_name in issue.get("labels", []) if not label_name.lower().startswith("status::")]
 
         # Display status: use status label if present, otherwise state
         if status_label:
@@ -590,6 +672,7 @@ def epic_status() -> int:
         print(f"      Recent commits: {len(commits)}")
 
     return 0
+
 
 def epic_update() -> int:
     """Update epic child issues with AI-generated status comments."""
@@ -616,7 +699,12 @@ def epic_update() -> int:
 
     # Get issues (epic can span multiple projects)
     spinner.start("[epic] Fetching issues...")
-    issues = get_epic_issues(gl, config["group_id"], config["epic_iid"], config.get("project_id"))
+    issues = get_epic_issues(
+        gl,
+        config["group_id"],
+        config["epic_iid"],
+        config.get("project_id"),
+    )
     spinner.stop()
 
     # Cache projects by ID for issue operations
@@ -633,7 +721,9 @@ def epic_update() -> int:
     end_date = datetime.now()
     start_date = end_date - timedelta(days=7)
     print(f"\nProcessing {len(issues)} issues...")
-    print(f"  Commit window: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+    print(
+        f"  Commit window: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
+    )
 
     updates = []
     for issue in issues:
@@ -644,7 +734,7 @@ def epic_update() -> int:
         print(f"    Commits found: {len(commits)}")
 
         # Get current status label
-        current_status_label = _get_current_status_label(issue.get('labels', []))
+        current_status_label = _get_current_status_label(issue.get("labels", []))
 
         # Generate status update
         prompt = build_status_update_prompt(issue, commits, current_status_label)
@@ -666,14 +756,16 @@ def epic_update() -> int:
                 comment = response
                 suggested_label = None
 
-            updates.append({
-                "issue": issue,
-                "comment": comment,
-                "commits": commits,  # Store full commit data for URLs
-                "commit_count": len(commits),
-                "current_label": current_status_label,
-                "suggested_label": suggested_label,
-            })
+            updates.append(
+                {
+                    "issue": issue,
+                    "comment": comment,
+                    "commits": commits,  # Store full commit data for URLs
+                    "commit_count": len(commits),
+                    "current_label": current_status_label,
+                    "suggested_label": suggested_label,
+                },
+            )
             print(f"    Generated: {comment[:60]}...")
         except Exception as e:
             spinner.stop()
@@ -706,34 +798,47 @@ def epic_update() -> int:
             print(f"  Label: No change (remains {current_display})")
         else:
             print(f"  Label: {current_display} → {suggested_display} [SUGGESTED]")
-            label_changes.append({
-                "iid": u["issue"]["iid"],
-                "project_id": u["issue"]["project_id"],
-                "title": u["issue"]["title"],
-                "current_label": current_label,
-                "suggested_label": suggested_label,
-            })
+            label_changes.append(
+                {
+                    "iid": u["issue"]["iid"],
+                    "project_id": u["issue"]["project_id"],
+                    "title": u["issue"]["title"],
+                    "current_label": current_label,
+                    "suggested_label": suggested_label,
+                },
+            )
 
             # Collect potential state changes for manual review
             if suggested_label and "complete" in suggested_label.lower() and issue_state == "opened":
-                print(f"  State: opened → closed [SUGGESTED]")
-                pending_state_changes.append({
-                    "iid": u["issue"]["iid"],
-                    "project_id": u["issue"]["project_id"],
-                    "title": u["issue"]["title"],
-                    "action": "close",
-                    "current_state": "opened",
-                })
-            elif suggested_label and suggested_label.lower() not in ["status::complete",
-                                                                     "status::won't fix"] and issue_state == "closed":
-                print(f"  State: closed → opened [SUGGESTED]")
-                pending_state_changes.append({
-                    "iid": u["issue"]["iid"],
-                    "project_id": u["issue"]["project_id"],
-                    "title": u["issue"]["title"],
-                    "action": "reopen",
-                    "current_state": "closed",
-                })
+                print("  State: opened → closed [SUGGESTED]")
+                pending_state_changes.append(
+                    {
+                        "iid": u["issue"]["iid"],
+                        "project_id": u["issue"]["project_id"],
+                        "title": u["issue"]["title"],
+                        "action": "close",
+                        "current_state": "opened",
+                    },
+                )
+            elif (
+                suggested_label
+                and suggested_label.lower()
+                not in [
+                    "status::complete",
+                    "status::won't fix",
+                ]
+                and issue_state == "closed"
+            ):
+                print("  State: closed → opened [SUGGESTED]")
+                pending_state_changes.append(
+                    {
+                        "iid": u["issue"]["iid"],
+                        "project_id": u["issue"]["project_id"],
+                        "title": u["issue"]["title"],
+                        "action": "reopen",
+                        "current_state": "closed",
+                    },
+                )
 
     # Helper to get project from cache
     def get_project(project_id):
@@ -752,25 +857,25 @@ def epic_update() -> int:
 
     for u in updates:
         print(f"\n  #{u['issue']['iid']}: {u['issue']['title']}")
-        print(f"  Current comment:")
+        print("  Current comment:")
         print(f"    {u['comment']}")
 
         # Show commits with markdown-style links
-        if u['commits']:
-            print(f"  Commits to link:")
-            for c in u['commits'][:10]:
+        if u["commits"]:
+            print("  Commits to link:")
+            for c in u["commits"][:10]:
                 commit_url = f"{commit_url_base}/{c['full_hash']}"
                 print(f"    [{c['hash']}]({commit_url})")
-            if len(u['commits']) > 10:
+            if len(u["commits"]) > 10:
                 print(f"    ... and {len(u['commits']) - 10} more")
         print()
 
         response = input("  [p]ost / [e]dit / [s]kip? ").strip().lower()
 
-        if response == 's':
-            print(f"    ✗ Skipped")
+        if response == "s":
+            print("    ✗ Skipped")
             continue
-        elif response == 'e':
+        elif response == "e":
             print("  Enter new comment (press Enter twice to finish):")
             lines = []
             while True:
@@ -780,25 +885,27 @@ def epic_update() -> int:
                         break
                 else:
                     lines.append(line)
-            new_comment = " ".join(lines) if lines else u['comment']
-            u['comment'] = new_comment
+            new_comment = " ".join(lines) if lines else u["comment"]
+            u["comment"] = new_comment
             print(f"  Updated comment: {new_comment[:60]}...")
 
         # Post the comment (either original or edited)
-        if response in ['p', 'e', '']:
+        if response in ["p", "e", ""]:
             try:
                 # Build comment body with commit links
                 comment_body = f"**Automated Status Update**\n\n{u['comment']}"
 
                 # Add commit links section if there are commits (just clickable IDs)
-                if u['commits']:
+                if u["commits"]:
                     commit_links = []
-                    for c in u['commits'][:10]:  # Limit to 10 commits
+                    for c in u["commits"][:10]:  # Limit to 10 commits
                         commit_url = f"{commit_url_base}/{c['full_hash']}"
                         commit_links.append(f"[`{c['hash']}`]({commit_url})")
 
-                    comment_body += f"\n\n**Related Commits:** " + " ".join(commit_links)
-                    if len(u['commits']) > 10:
+                    comment_body += "\n\n**Related Commits:** " + " ".join(
+                        commit_links,
+                    )
+                    if len(u["commits"]) > 10:
                         comment_body += f" ... and {len(u['commits']) - 10} more"
 
                 proj = get_project(u["issue"]["project_id"])
@@ -822,11 +929,11 @@ def epic_update() -> int:
             print(f"  #{change['iid']}: {change['title']}")
             print(f"    Current: {old_display} → Suggested: {new_display}")
 
-            if prompt_yes_no(f"    Apply this label change?"):
+            if prompt_yes_no("    Apply this label change?"):
                 approved_label_changes.append(change)
-                print(f"    ✓ Approved")
+                print("    ✓ Approved")
             else:
-                print(f"    ✗ Skipped")
+                print("    ✗ Skipped")
 
         if approved_label_changes:
             print("\n[epic] Applying approved label changes...")
@@ -838,7 +945,7 @@ def epic_update() -> int:
 
                     # Remove old status label if present
                     if change["current_label"]:
-                        current_labels = [l for l in current_labels if l.lower() != change["current_label"].lower()]
+                        current_labels = [label_name for label_name in current_labels if label_name.lower() != change["current_label"].lower()]
 
                     # Add new status label
                     if change["suggested_label"]:
@@ -867,20 +974,22 @@ def epic_update() -> int:
             action = state_change["action"]
             if action == "close":
                 print(f"  #{state_change['iid']}: {state_change['title']}")
-                print(f"    Suggested: CLOSE this issue (mark as complete)")
-                if prompt_yes_no(f"    Close this issue?"):
+                print("    Suggested: CLOSE this issue (mark as complete)")
+                if prompt_yes_no("    Close this issue?"):
                     issues_to_close.append(state_change)
-                    print(f"    ✓ Will close")
+                    print("    ✓ Will close")
                 else:
-                    print(f"    ✗ Skipped")
+                    print("    ✗ Skipped")
             elif action == "reopen":
                 print(f"  #{state_change['iid']}: {state_change['title']}")
-                print(f"    Suggested: REOPEN this issue (currently closed but has activity)")
-                if prompt_yes_no(f"    Reopen this issue?"):
+                print(
+                    "    Suggested: REOPEN this issue (currently closed but has activity)",
+                )
+                if prompt_yes_no("    Reopen this issue?"):
                     issues_to_reopen.append(state_change)
-                    print(f"    ✓ Will reopen")
+                    print("    ✓ Will reopen")
                 else:
-                    print(f"    ✗ Skipped")
+                    print("    ✗ Skipped")
 
     # Apply approved closes
     if issues_to_close:
@@ -910,6 +1019,7 @@ def epic_update() -> int:
 
     print("\n[epic] Update complete!")
     return 0
+
 
 def epic_remap() -> int:
     """Re-generate code path mappings for issues."""
@@ -943,6 +1053,7 @@ def epic_remap() -> int:
         return 1
 
     return 0
+
 
 def epic_labels() -> int:
     """Debug: Show all project/group labels containing 'status'."""
@@ -996,8 +1107,8 @@ def epic_labels() -> int:
         name = label.name
         if "status" in name.lower():
             status_labels.append(label)
-            desc = getattr(label, 'description', '') or ''
-            color = getattr(label, 'color', '')
+            desc = getattr(label, "description", "") or ""
+            color = getattr(label, "color", "")
             print(f"  Name: {name}")
             print(f"    Color: {color}")
             if desc:
@@ -1014,8 +1125,8 @@ def epic_labels() -> int:
         name = label.name
         if "status" in name.lower():
             group_status_labels.append(label)
-            desc = getattr(label, 'description', '') or ''
-            color = getattr(label, 'color', '')
+            desc = getattr(label, "description", "") or ""
+            color = getattr(label, "color", "")
             print(f"  Name: {name}")
             print(f"    Color: {color}")
             if desc:
@@ -1042,6 +1153,7 @@ def epic_labels() -> int:
 
     return 0
 
+
 def epic_workflow(args) -> int:
     """Main epic workflow dispatcher."""
     if args.setup:
@@ -1061,4 +1173,3 @@ def epic_workflow(args) -> int:
             print("[epic] No configuration found. Starting setup...")
             return epic_setup()
         return epic_status()
-

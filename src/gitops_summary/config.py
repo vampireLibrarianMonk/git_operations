@@ -250,7 +250,7 @@ GITLAB TOKEN SCOPES
 -------------------
 For epic mode, create a Personal Access Token with these scopes:
 - api
-- read_api  
+- read_api
 - read_repository
 
 TOKEN URL: https://YOUR_GITLAB/-/user_settings/personal_access_tokens
@@ -269,4 +269,3 @@ FILES
 
 ================================================================================
 """
-

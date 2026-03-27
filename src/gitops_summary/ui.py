@@ -1,9 +1,10 @@
 """Console/UI utilities."""
 
 import itertools
+import sys
 import threading
 import time
-import sys
+
 
 class Spinner:
     """Rotating spinner for long-running operations."""
@@ -12,7 +13,7 @@ class Spinner:
         self.message = message
         self.spinning = False
         self.thread = None
-        self.chars = itertools.cycle(['|', '/', '-', '\\'])
+        self.chars = itertools.cycle(["|", "/", "-", "\\"])
 
     def _spin(self):
         while self.spinning:
@@ -42,7 +43,7 @@ class Spinner:
     def __exit__(self, *args):
         self.stop()
 
+
 def prompt_yes_no(question: str) -> bool:
     response = input(f"{question} [y/N]: ").strip().lower()
     return response in {"y", "yes"}
-

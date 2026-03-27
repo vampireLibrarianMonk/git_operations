@@ -2,7 +2,8 @@
 
 import json
 
-from .config import MODEL_ID, MAX_TOKENS_COMMIT
+from .config import MAX_TOKENS_COMMIT, MODEL_ID
+
 
 def call_bedrock(prompt: str, max_tokens: int = MAX_TOKENS_COMMIT) -> str:
     import boto3
@@ -16,7 +17,7 @@ def call_bedrock(prompt: str, max_tokens: int = MAX_TOKENS_COMMIT) -> str:
             {
                 "role": "user",
                 "content": [{"type": "text", "text": prompt}],
-            }
+            },
         ],
     }
     response = client.invoke_model(
@@ -25,4 +26,3 @@ def call_bedrock(prompt: str, max_tokens: int = MAX_TOKENS_COMMIT) -> str:
     )
     payload = json.loads(response["body"].read())
     return "".join(part.get("text", "") for part in payload.get("content", []))
-

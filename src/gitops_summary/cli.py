@@ -35,23 +35,65 @@ Update workflow (--update):
         """,
     )
 
-    parser.add_argument("--manual", action="store_true", help="Display full user manual")
-    parser.add_argument("--generate-md", action="store_true", help="Generate README.md file")
+    parser.add_argument(
+        "--manual",
+        action="store_true",
+        help="Display full user manual",
+    )
+    parser.add_argument(
+        "--generate-md",
+        action="store_true",
+        help="Generate README.md file",
+    )
 
     subparsers = parser.add_subparsers(dest="mode", help="Operation mode")
     subparsers.add_parser("commit", help="Summarize current changes and commit")
 
-    weekly_parser = subparsers.add_parser("weekly", help="Summarize last 7 days (rolling window)")
-    weekly_parser.add_argument("--issues", action="store_true", help="Generate report based on GitLab issues with activity")
-    weekly_parser.add_argument("--start-date", help="Start date (YYYY-MM-DD) for custom range (inclusive)")
-    weekly_parser.add_argument("--days", type=int, help="Number of days to include starting from start-date (inclusive)")
+    weekly_parser = subparsers.add_parser(
+        "weekly",
+        help="Summarize last 7 days (rolling window)",
+    )
+    weekly_parser.add_argument(
+        "--issues",
+        action="store_true",
+        help="Generate report based on GitLab issues with activity",
+    )
+    weekly_parser.add_argument(
+        "--start-date",
+        help="Start date (YYYY-MM-DD) for custom range (inclusive)",
+    )
+    weekly_parser.add_argument(
+        "--days",
+        type=int,
+        help="Number of days to include starting from start-date (inclusive)",
+    )
 
     epic_parser = subparsers.add_parser("epic", help="GitLab epic tracking")
-    epic_parser.add_argument("--setup", action="store_true", help="Initial setup (token, URL, epic)")
-    epic_parser.add_argument("--status", action="store_true", help="Show epic and child issue status")
-    epic_parser.add_argument("--update", action="store_true", help="Update child issues with AI comments")
-    epic_parser.add_argument("--map", action="store_true", help="Re-map code paths to issues")
-    epic_parser.add_argument("--labels", action="store_true", help="Debug: Show all status-related labels")
+    epic_parser.add_argument(
+        "--setup",
+        action="store_true",
+        help="Initial setup (token, URL, epic)",
+    )
+    epic_parser.add_argument(
+        "--status",
+        action="store_true",
+        help="Show epic and child issue status",
+    )
+    epic_parser.add_argument(
+        "--update",
+        action="store_true",
+        help="Update child issues with AI comments",
+    )
+    epic_parser.add_argument(
+        "--map",
+        action="store_true",
+        help="Re-map code paths to issues",
+    )
+    epic_parser.add_argument(
+        "--labels",
+        action="store_true",
+        help="Debug: Show all status-related labels",
+    )
 
     return parser
 

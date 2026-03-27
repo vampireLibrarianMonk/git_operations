@@ -7,8 +7,8 @@ from .config import MAX_DIFF_CHARS
 from .git_ops import (
     filter_status_output,
     filter_unified_diff_excluding_paths,
-    get_untracked_files,
     get_new_files_from_staged,
+    get_untracked_files,
     handle_untracked_files,
     is_script_generated_file,
     remove_script_generated_files_from_index,
@@ -17,6 +17,7 @@ from .git_ops import (
 )
 from .prompts import build_prompt, clean_commit_response
 from .ui import prompt_yes_no
+
 
 def commit_workflow() -> int:
     """Original workflow: summarize uncommitted changes and optionally commit."""
@@ -59,7 +60,9 @@ def commit_workflow() -> int:
         if has_untracked:
             print(f"  - {len(untracked)} untracked file(s)")
         if excluded_untracked:
-            print(f"  - {len(excluded_untracked)} script-generated untracked file(s) (auto-excluded)")
+            print(
+                f"  - {len(excluded_untracked)} script-generated untracked file(s) (auto-excluded)",
+            )
 
         print("\nHow would you like to proceed?")
         print("  [a] Stage ALL changes (tracked + untracked) and generate summary")
@@ -80,7 +83,9 @@ def commit_workflow() -> int:
             # Handle untracked files first
             staged_untracked, untracked_content = handle_untracked_files()
             if staged_untracked:
-                print(f"\n[git-commit-summary] Staged {len(staged_untracked)} new file(s)")
+                print(
+                    f"\n[git-commit-summary] Staged {len(staged_untracked)} new file(s)",
+                )
 
             # Now handle unstaged tracked changes
             if has_unstaged:
@@ -150,7 +155,7 @@ def commit_workflow() -> int:
 
     print("[git-commit-summary] Checking upstream...")
     upstream_check = run_git_command_allow_failure(
-        ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"]
+        ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
     )
     if upstream_check.returncode == 0:
         print("[git-commit-summary] Running git push...")
@@ -161,4 +166,3 @@ def commit_workflow() -> int:
     branch = run_git_command(["rev-parse", "--abbrev-ref", "HEAD"])
     run_git_command(["push", "--set-upstream", "origin", branch])
     return 0
-

@@ -1,13 +1,14 @@
 """Git command and diff/status utilities."""
 
-import subprocess
+import subprocess  # nosec B404
 from typing import List
 
 from .config import EXCLUDED_SUMMARY_PATHS, SCRIPT_GENERATED_FILES
 from .ui import prompt_yes_no
 
+
 def run_git_command(args: List[str], input_text: str | None = None) -> str:
-    result = subprocess.run(
+    result = subprocess.run(  # nosec
         ["git", *args],
         check=False,
         capture_output=True,
@@ -18,12 +19,13 @@ def run_git_command(args: List[str], input_text: str | None = None) -> str:
     )
     if result.returncode != 0:
         raise RuntimeError(
-            f"Git command failed: git {' '.join(args)}\n{result.stderr.strip()}"
+            f"Git command failed: git {' '.join(args)}\n{result.stderr.strip()}",
         )
     return result.stdout.strip()
 
+
 def run_git_command_allow_failure(args: List[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
+    return subprocess.run(  # nosec
         ["git", *args],
         check=False,
         capture_output=True,
@@ -31,6 +33,7 @@ def run_git_command_allow_failure(args: List[str]) -> subprocess.CompletedProces
         encoding="utf-8",
         errors="replace",
     )
+
 
 def get_untracked_files() -> List[str]:
     """Get list of untracked files from git status."""
@@ -43,15 +46,18 @@ def get_untracked_files() -> List[str]:
             untracked.append(line[3:])
     return untracked
 
+
 def is_script_generated_file(filepath: str) -> bool:
     """Return True if path is generated/managed by this script."""
     normalized = filepath.strip().replace("\\", "/")
     return normalized in SCRIPT_GENERATED_FILES
 
+
 def is_excluded_summary_path(filepath: str) -> bool:
     """Return True if a path should be excluded from all generated summaries."""
     normalized = filepath.strip().replace("\\", "/")
     return normalized in EXCLUDED_SUMMARY_PATHS
+
 
 def _extract_path_from_diff_header(line: str) -> str:
     """Extract path from a unified diff header line."""
@@ -64,6 +70,7 @@ def _extract_path_from_diff_header(line: str) -> str:
         return b_path
     return ""
 
+
 def filter_status_output(status_text: str) -> str:
     """Remove excluded paths from git status text."""
     kept: List[str] = []
@@ -73,6 +80,7 @@ def filter_status_output(status_text: str) -> str:
             continue
         kept.append(line)
     return "\n".join(kept)
+
 
 def filter_unified_diff_excluding_paths(diff_text: str) -> str:
     """Remove whole diff blocks for excluded files from unified git diff text."""
@@ -101,9 +109,11 @@ def filter_unified_diff_excluding_paths(diff_text: str) -> str:
 
     return "".join(output_lines)
 
+
 def git_exclude_pathspecs() -> List[str]:
     """Build git pathspec exclusions for files hidden from generated summaries."""
     return [f":(exclude){path}" for path in sorted(EXCLUDED_SUMMARY_PATHS)]
+
 
 def remove_script_generated_files_from_index() -> List[str]:
     """Unstage script-generated files if they were staged."""
@@ -117,12 +127,15 @@ def remove_script_generated_files_from_index() -> List[str]:
         return []
 
     # Keep files in working tree, but remove from staged commit set.
-    restore_result = run_git_command_allow_failure(["restore", "--staged", "--", *to_unstage])
+    restore_result = run_git_command_allow_failure(
+        ["restore", "--staged", "--", *to_unstage],
+    )
     if restore_result.returncode != 0:
         # Fallback for environments where restore may not be available/compatible.
         run_git_command_allow_failure(["reset", "HEAD", "--", *to_unstage])
 
     return to_unstage
+
 
 def get_new_files_from_staged() -> List[str]:
     """Get list of newly added files from staged changes (files that don't exist in HEAD)."""
@@ -137,6 +150,7 @@ def get_new_files_from_staged() -> List[str]:
                 new_files.append(candidate)
     return new_files
 
+
 def read_file_content(filepath: str, max_chars: int = 10000) -> str:
     """Read file content, truncating if too large."""
     try:
@@ -147,6 +161,7 @@ def read_file_content(filepath: str, max_chars: int = 10000) -> str:
             return content
     except Exception as exc:
         return f"[Could not read file: {exc}]"
+
 
 def handle_untracked_files() -> tuple[List[str], str]:
     """Prompt user to stage untracked files one by one."""
@@ -171,4 +186,3 @@ def handle_untracked_files() -> tuple[List[str], str]:
 
     content_str = "\n\n".join(untracked_content) if untracked_content else ""
     return staged_files, content_str
-

@@ -4,16 +4,15 @@ from typing import Dict, List, Optional
 
 from .config import VALID_STATUS_LABELS
 
+
 def build_prompt(status: str, diff: str, new_files: List[str] = None) -> str:
     new_files_section = ""
     if new_files:
         new_files_list = "\n".join(f"  - {f}" for f in new_files)
-        new_files_section = (
-            f"\n\nNEWLY ADDED FILES (these are brand new, not modifications):\n{new_files_list}\n"
-        )
+        new_files_section = f"\n\nNEWLY ADDED FILES (these are brand new, not modifications):\n{new_files_list}\n"
 
     # Count files from status to adjust instructions for large commits
-    file_count = len([line for line in status.split('\n') if line.strip()])
+    file_count = len([line for line in status.split("\n") if line.strip()])
 
     if file_count > 30:
         format_instructions = (
@@ -28,16 +27,16 @@ def build_prompt(status: str, diff: str, new_files: List[str] = None) -> str:
         )
     else:
         format_instructions = (
-            "FORMAT:\n"
-            "1) Executive summary paragraph (2-4 sentences).\n"
-            "2) Bulleted list of each changed file with a specific summary of changes.\n"
+            "FORMAT:\n" "1) Executive summary paragraph (2-4 sentences).\n" "2) Bulleted list of each changed file with a specific summary of changes.\n"
         )
 
     return (
         "You are a senior engineering assistant creating git commit messages.\n"
         f"{format_instructions}\n\n"
         "CRITICAL RULES FOR ACCURACY:\n"
-        "- SKIP files that have no visible changes in the diff (e.g., whitespace-only or formatting-only changes with no actual code diff). Do NOT list them or say 'No changes'.\n"
+        "- SKIP files that have no visible changes in the diff "
+        "(e.g., whitespace-only or formatting-only changes with no actual code diff). "
+        "Do NOT list them or say 'No changes'.\n"
         "- EXTRACT SPECIFIC DETAILS from the diff: function names, variable names, class names, "
         "parameter changes, new imports, removed code, renamed identifiers, etc.\n"
         "- NEVER use generic phrases like 'updated logic', 'improved functionality', 'made changes', "
@@ -69,9 +68,10 @@ def build_prompt(status: str, diff: str, new_files: List[str] = None) -> str:
         f"{new_files_section}"
     )
 
+
 def clean_commit_response(response: str) -> str:
     """Clean up LLM response to extract just the commit message."""
-    lines = response.strip().split('\n')
+    lines = response.strip().split("\n")
     cleaned_lines = []
     skip_until_content = True
 
@@ -85,16 +85,24 @@ def clean_commit_response(response: str) -> str:
         # Skip common preamble patterns
         if skip_until_content:
             lower = stripped.lower()
-            if any(lower.startswith(p) for p in [
-                'here is', 'here\'s', 'below is', 'the commit message',
-                'commit message:', 'executive summary:', '```',
-            ]):
+            if any(
+                lower.startswith(p)
+                for p in [
+                    "here is",
+                    "here's",
+                    "below is",
+                    "the commit message",
+                    "commit message:",
+                    "executive summary:",
+                    "```",
+                ]
+            ):
                 continue
             # Found real content
             skip_until_content = False
 
         # Stop at trailing code block markers
-        if stripped == '```':
+        if stripped == "```":
             break
 
         cleaned_lines.append(line)
@@ -103,14 +111,16 @@ def clean_commit_response(response: str) -> str:
     while cleaned_lines and not cleaned_lines[-1].strip():
         cleaned_lines.pop()
 
-    return '\n'.join(cleaned_lines)
+    return "\n".join(cleaned_lines)
 
-def build_mapping_prompt(epic_title: str, issues: List[Dict], project_structure: str) -> str:
+
+def build_mapping_prompt(
+    epic_title: str,
+    issues: List[Dict],
+    project_structure: str,
+) -> str:
     """Build prompt for LLM to map code paths to issues."""
-    issues_text = "\n".join(
-        f"  - Issue #{i['iid']}: {i['title']}\n    Description: {i['description'][:200] if i['description'] else 'N/A'}"
-        for i in issues
-    )
+    issues_text = "\n".join(f"  - Issue #{i['iid']}: {i['title']}\n    Description: {i['description'][:200] if i['description'] else 'N/A'}" for i in issues)
     return f"""You are analyzing a software project to map code paths to GitLab issues.
 
 Epic: {epic_title}
@@ -138,6 +148,7 @@ Rules:
 - Consider the issue title and description to infer relevance
 """
 
+
 def _clean_commit_message(msg: str) -> str:
     """Clean up malformed AI-generated commit messages."""
     # Strip common AI output prefixes
@@ -154,7 +165,7 @@ def _clean_commit_message(msg: str) -> str:
     cleaned = msg.strip()
     for prefix in prefixes_to_strip:
         if cleaned.startswith(prefix):
-            cleaned = cleaned[len(prefix):].strip()
+            cleaned = cleaned[len(prefix) :].strip()
 
     # If message is now empty or too short, use a placeholder
     if len(cleaned) < 5:
@@ -162,17 +173,19 @@ def _clean_commit_message(msg: str) -> str:
 
     return cleaned
 
-def build_status_update_prompt(issue: Dict, commits: List[Dict], current_status_label: Optional[str]) -> str:
+
+def build_status_update_prompt(
+    issue: Dict,
+    commits: List[Dict],
+    current_status_label: Optional[str],
+) -> str:
     """Build prompt for generating issue status update."""
-    commits_text = "\n".join(
-        f"  - {c['date']} [{c['hash']}] {c['message']} ({c['author']})"
-        for c in commits[:10]
-    ) if commits else "  No recent commits"
+    commits_text = "\n".join(f"  - {c['date']} [{c['hash']}] {c['message']} ({c['author']})" for c in commits[:10]) if commits else "  No recent commits"
 
     current_label_display = current_status_label or "None"
     valid_labels_list = "\n".join(f"  - {label}" for label in VALID_STATUS_LABELS)
 
-    issue_state = issue.get('state', 'opened')
+    issue_state = issue.get("state", "opened")
     state_context = ""
     if issue_state == "closed":
         state_context = """
@@ -228,6 +241,7 @@ Output ONLY valid JSON, no preamble:
 {{"comment": "your comment here", "suggested_label": "status::in-progress"}}
 """
 
+
 def build_daily_summary_prompt(day_name: str, diff: str) -> str:
     """Build prompt for summarizing a single day's changes."""
     return (
@@ -244,11 +258,10 @@ def build_daily_summary_prompt(day_name: str, diff: str) -> str:
         f"Diff:\n{diff}\n"
     )
 
+
 def build_weekly_rollup_prompt(daily_summaries: dict[str, str]) -> str:
     """Build prompt for rolling up daily summaries into weekly summary."""
-    summaries_text = "\n\n".join(
-        f"{day}:\n{summary}" for day, summary in daily_summaries.items() if summary
-    )
+    summaries_text = "\n\n".join(f"{day}:\n{summary}" for day, summary in daily_summaries.items() if summary)
     return (
         "You are summarizing a week of software development work.\n"
         "Create a summary with:\n"
@@ -267,4 +280,3 @@ def build_weekly_rollup_prompt(daily_summaries: dict[str, str]) -> str:
         "- Output plain text, no markdown headers.\n\n"
         f"Daily summaries:\n{summaries_text}\n"
     )
-

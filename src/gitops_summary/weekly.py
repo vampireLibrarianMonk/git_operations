@@ -1,25 +1,33 @@
 """Weekly summary workflows."""
 
+import sys
 from datetime import datetime, timedelta
 from typing import List, Optional
 
 from .bedrock import call_bedrock
 from .config import MAX_DIFF_CHARS, MAX_TOKENS_WEEKLY
-from .epic import get_epic_issues, get_gitlab_client, get_recent_commits_for_paths, load_gitlab_config, _get_current_status_label
+from .epic import _get_current_status_label, get_epic_issues, get_gitlab_client, get_recent_commits_for_paths, load_gitlab_config
 from .git_ops import git_exclude_pathspecs, run_git_command_allow_failure
 from .prompts import build_daily_summary_prompt, build_weekly_rollup_prompt
 from .ui import Spinner
 
+
 def parse_start_date(date_str: str) -> datetime:
     """Parse YYYY-MM-DD into a datetime at 00:00:00."""
     try:
-        return datetime.strptime(date_str, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
+        return datetime.strptime(date_str, "%Y-%m-%d").replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
     except ValueError as exc:
         raise ValueError("start-date must be in YYYY-MM-DD format") from exc
 
+
 def resolve_weekly_date_range(
-        start_date_str: Optional[str],
-        days: Optional[int],
+    start_date_str: Optional[str],
+    days: Optional[int],
 ) -> tuple[datetime, datetime]:
     """Resolve the weekly date range using optional start-date/days overrides.
 
@@ -40,6 +48,7 @@ def resolve_weekly_date_range(
     start_date = end_date - timedelta(days=7)
     return start_date, end_date
 
+
 def iter_date_range(start_date: datetime, end_date: datetime) -> List[datetime]:
     """Build a list of day-start datetimes within [start_date, end_date)."""
     end_inclusive = (end_date - timedelta(seconds=1)).date()
@@ -50,24 +59,28 @@ def iter_date_range(start_date: datetime, end_date: datetime) -> List[datetime]:
         current_date += timedelta(days=1)
     return days
 
+
 def get_commits_for_day(date: datetime) -> List[str]:
     """Get commit hashes for a specific day."""
     # Use --since (inclusive) and --until (inclusive) with date-only format
     # to capture all commits on this day
     day_str = date.strftime("%Y-%m-%d")
     next_day_str = (date + timedelta(days=1)).strftime("%Y-%m-%d")
-    result = run_git_command_allow_failure([
-        "log",
-        f"--since={day_str}",
-        f"--until={next_day_str}",
-        "--format=%H",
-        "--",
-        ".",
-        *git_exclude_pathspecs(),
-    ])
+    result = run_git_command_allow_failure(
+        [
+            "log",
+            f"--since={day_str}",
+            f"--until={next_day_str}",
+            "--format=%H",
+            "--",
+            ".",
+            *git_exclude_pathspecs(),
+        ],
+    )
     if result.returncode != 0 or not result.stdout.strip():
         return []
     return result.stdout.strip().split("\n")
+
 
 def get_diff_for_commits(commits: List[str]) -> str:
     """Get combined diff for a list of commits."""
@@ -75,34 +88,41 @@ def get_diff_for_commits(commits: List[str]) -> str:
         return ""
     oldest = commits[-1]
     newest = commits[0]
-    result = run_git_command_allow_failure([
-        "diff",
-        f"{oldest}^..{newest}",
-        "--",
-        ".",
-        *git_exclude_pathspecs(),
-    ])
+    result = run_git_command_allow_failure(
+        [
+            "diff",
+            f"{oldest}^..{newest}",
+            "--",
+            ".",
+            *git_exclude_pathspecs(),
+        ],
+    )
     if result.returncode != 0:
         diffs = []
         for commit in commits:
-            r = run_git_command_allow_failure([
-                "show",
-                "--stat",
-                commit,
-                "--",
-                ".",
-                *git_exclude_pathspecs(),
-            ])
+            r = run_git_command_allow_failure(
+                [
+                    "show",
+                    "--stat",
+                    commit,
+                    "--",
+                    ".",
+                    *git_exclude_pathspecs(),
+                ],
+            )
             if r.returncode == 0:
                 diffs.append(r.stdout)
         return "\n".join(diffs)
     return result.stdout
 
+
 def weekly_issues_workflow(start_date: datetime, end_date: datetime) -> int:
     """Generate weekly report based on GitLab issues with activity."""
     config = load_gitlab_config()
     if not config:
-        print("[weekly-issues] No GitLab configuration found. Run: gitops-summary epic --setup")
+        print(
+            "[weekly-issues] No GitLab configuration found. Run: gitops-summary epic --setup",
+        )
         return 1
 
     print("\n" + "=" * 60)
@@ -123,7 +143,12 @@ def weekly_issues_workflow(start_date: datetime, end_date: datetime) -> int:
 
     # Get issues
     spinner.start("[weekly-issues] Fetching issues...")
-    issues = get_epic_issues(gl, config["group_id"], config["epic_iid"], config.get("project_id"))
+    issues = get_epic_issues(
+        gl,
+        config["group_id"],
+        config["epic_iid"],
+        config.get("project_id"),
+    )
     spinner.stop()
 
     mappings = config.get("mappings", {}).get("mappings", [])
@@ -145,16 +170,23 @@ def weekly_issues_workflow(start_date: datetime, end_date: datetime) -> int:
     for issue in issues:
         paths = mapping_lookup.get(issue["iid"], [])
         commits = (
-            get_recent_commits_for_paths(paths, start_date=start_date, end_date=end_date)
-            if paths else []
+            get_recent_commits_for_paths(
+                paths,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            if paths
+            else []
         )
 
         if commits:
-            issues_with_activity.append({
-                "issue": issue,
-                "commits": commits,
-                "paths": paths,
-            })
+            issues_with_activity.append(
+                {
+                    "issue": issue,
+                    "commits": commits,
+                    "paths": paths,
+                },
+            )
 
     if not issues_with_activity:
         print("\n[weekly-issues] No issues with recent commit activity found.")
@@ -175,7 +207,7 @@ def weekly_issues_workflow(start_date: datetime, end_date: datetime) -> int:
         commits = item["commits"]
 
         # Get status label
-        status_label = _get_current_status_label(issue.get('labels', []))
+        status_label = _get_current_status_label(issue.get("labels", []))
         status_display = status_label.split("::", 1)[1] if status_label else "No status"
 
         issue_url = f"{issue_url_base}/{issue['iid']}"
@@ -194,24 +226,24 @@ def weekly_issues_workflow(start_date: datetime, end_date: datetime) -> int:
             print(f"    ... and {len(commits) - 5} more")
 
         # Build report line for summary
-        commit_links = " ".join([f"[{c['hash']}]({commit_url_base}/{c['full_hash']})" for c in commits[:5]])
-        report_lines.append({
-            "iid": issue["iid"],
-            "title": issue["title"],
-            "status": status_display,
-            "commit_count": len(commits),
-            "commits": commits,
-        })
+        report_lines.append(
+            {
+                "iid": issue["iid"],
+                "title": issue["title"],
+                "status": status_display,
+                "commit_count": len(commits),
+                "commits": commits,
+            },
+        )
 
     # Generate AI summary of the week's work
     print("\n" + "=" * 60)
     print("GENERATING WEEKLY SUMMARY...")
     print("=" * 60)
 
-    issues_summary_text = "\n".join([
-        f"- Issue #{r['iid']}: {r['title']} ({r['status']}) - {r['commit_count']} commits"
-        for r in report_lines
-    ])
+    issues_summary_text = "\n".join(
+        [f"- Issue #{r['iid']}: {r['title']} ({r['status']}) - {r['commit_count']} commits" for r in report_lines],
+    )
 
     summary_prompt = f"""Summarize the following work on a software project based on GitLab issues with activity.
 
@@ -241,9 +273,12 @@ Output plain text only, no markdown headers.
     print("\n" + "=" * 60)
     return 0
 
+
 def weekly_workflow(start_date: datetime, end_date: datetime) -> int:
     """Summarize all commits from the resolved weekly date range."""
-    print(f"[git-weekly-summary] Analyzing commits from {start_date.date()} to {end_date.date()} (exclusive end)")
+    print(
+        f"[git-weekly-summary] Analyzing commits from {start_date.date()} to {end_date.date()} (exclusive end)",
+    )
 
     daily_summaries: dict[str, str] = {}
     for day_date in iter_date_range(start_date, end_date):
@@ -278,7 +313,10 @@ def weekly_workflow(start_date: datetime, end_date: datetime) -> int:
     print("\n[git-weekly-summary] Generating weekly rollup...")
     try:
         rollup_prompt = build_weekly_rollup_prompt(daily_summaries)
-        weekly_summary = call_bedrock(rollup_prompt, max_tokens=MAX_TOKENS_WEEKLY).strip()
+        weekly_summary = call_bedrock(
+            rollup_prompt,
+            max_tokens=MAX_TOKENS_WEEKLY,
+        ).strip()
     except Exception as exc:
         print(f"Bedrock request failed: {exc}", file=sys.stderr)
         return 1
@@ -290,4 +328,3 @@ def weekly_workflow(start_date: datetime, end_date: datetime) -> int:
     print("=" * 60)
 
     return 0
-
