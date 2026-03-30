@@ -44,6 +44,16 @@ If your pip/setuptools combo does not support editable installs in your environm
 pip install .
 ```
 
+### Install directly from GitHub
+
+Use pip's VCS URL format, not the plain repository URL:
+
+```bash
+pip install "git+https://github.com/vampireLibrarianMonk/git_operations.git"
+```
+
+Why: `pip install https://github.com/...` downloads the GitHub HTML page/repo endpoint, which is not a Python source archive, so pip cannot unpack it. The `git+https://...` form tells pip to clone the repository and build/install the package from `pyproject.toml`.
+
 After install, the CLI command is:
 
 ```bash
