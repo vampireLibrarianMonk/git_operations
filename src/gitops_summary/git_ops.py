@@ -35,6 +35,12 @@ def run_git_command_allow_failure(args: List[str]) -> subprocess.CompletedProces
     )
 
 
+def is_initial_commit() -> bool:
+    """Return True when the repository does not yet have a HEAD commit."""
+    result = run_git_command_allow_failure(["rev-parse", "--verify", "HEAD"])
+    return result.returncode != 0
+
+
 def get_untracked_files() -> List[str]:
     """Get list of untracked files from git status."""
     result = run_git_command_allow_failure(["status", "--porcelain"])

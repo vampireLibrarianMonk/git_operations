@@ -5,11 +5,26 @@ from typing import Dict, List, Optional
 from .config import VALID_STATUS_LABELS
 
 
-def build_prompt(status: str, diff: str, new_files: List[str] = None) -> str:
+def build_prompt(
+    status: str,
+    diff: str,
+    new_files: Optional[List[str]] = None,
+    is_initial_commit: bool = False,
+) -> str:
     new_files_section = ""
     if new_files:
         new_files_list = "\n".join(f"  - {f}" for f in new_files)
         new_files_section = f"\n\nNEWLY ADDED FILES (these are brand new, not modifications):\n{new_files_list}\n"
+
+    initial_commit_section = ""
+    if is_initial_commit:
+        initial_commit_section = (
+            "\nINITIAL COMMIT CONTEXT:\n"
+            "- This is the first commit in the repository.\n"
+            "- Write the summary in a natural, human way that reflects initial setup, scaffolding, or first implementation work.\n"
+            "- Favor phrasing like 'Initial project scaffolding for ...', 'Initial implementation of ...', or 'Bootstrap ...'.\n"
+            "- Avoid describing the work like a routine follow-up update with words such as 'updated' or 'modified' unless the diff clearly requires that wording.\n"
+        )
 
     # Count files from status to adjust instructions for large commits
     file_count = len([line for line in status.split("\n") if line.strip()])
@@ -61,6 +76,7 @@ def build_prompt(status: str, diff: str, new_files: List[str] = None) -> str:
         "- Do NOT wrap output in code blocks or markdown.\n"
         "- Do NOT echo back the git status or git diff.\n"
         "- Start directly with the summary paragraph.\n\n"
+        f"{initial_commit_section}"
         "Git status:\n"
         f"{status}\n\n"
         "Git diff:\n"

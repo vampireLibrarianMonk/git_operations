@@ -10,6 +10,7 @@ from .git_ops import (
     get_new_files_from_staged,
     get_untracked_files,
     handle_untracked_files,
+    is_initial_commit,
     is_script_generated_file,
     remove_script_generated_files_from_index,
     run_git_command,
@@ -124,12 +125,18 @@ def commit_workflow() -> int:
 
     # Get list of newly added files (to distinguish from modifications)
     new_files = get_new_files_from_staged()
+    initial_commit = is_initial_commit()
 
     if len(staged_diff) > MAX_DIFF_CHARS:
         staged_diff = staged_diff[:MAX_DIFF_CHARS] + "\n... (diff truncated)"
 
     print("[git-commit-summary] Preparing prompt...")
-    prompt = build_prompt(status, staged_diff, new_files)
+    prompt = build_prompt(
+        status,
+        staged_diff,
+        new_files,
+        is_initial_commit=initial_commit,
+    )
     try:
         print("[git-commit-summary] Sending request to Bedrock...")
         message = call_bedrock(prompt)
