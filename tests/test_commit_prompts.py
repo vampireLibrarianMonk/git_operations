@@ -3,8 +3,10 @@ import unittest
 from gitops_summary.prompts import (
     build_commit_retry_prompt,
     build_fallback_commit_message,
+    build_fallback_commit_subject,
     build_prompt,
     clean_commit_response,
+    coerce_commit_message,
     looks_like_commit_message,
     sanitize_commit_response,
 )
@@ -15,7 +17,8 @@ class CommitPromptTests(unittest.TestCase):
         prompt = build_prompt("M  src/app.py", "diff --git a/src/app.py b/src/app.py")
 
         self.assertIn("First line: one concise git commit subject", prompt)
-        self.assertIn("Do NOT write an executive summary", prompt)
+        self.assertIn("include a 1-3 sentence executive summary paragraph", prompt)
+        self.assertIn("Do write a real commit message with subject line, summary paragraph", prompt)
         self.assertIn("Start directly with the commit subject line", prompt)
 
     def test_build_commit_retry_prompt_mentions_invalid_answer(self) -> None:
@@ -81,6 +84,13 @@ Backend:
             "Update 2 files in src\n\n- Update src/gitops_summary/commit.py\n- Update src/gitops_summary/prompts.py",
         )
 
+    def test_build_fallback_commit_subject_for_multiple_files(self) -> None:
+        subject = build_fallback_commit_subject(
+            "## main\nM  src/gitops_summary/commit.py\nM  src/gitops_summary/prompts.py",
+        )
+
+        self.assertEqual(subject, "Update 2 files in src")
+
     def test_build_fallback_commit_message_handles_rename(self) -> None:
         message = build_fallback_commit_message("## main\nR  old_name.py -> new_name.py")
 
@@ -116,6 +126,45 @@ Improve document sync flow
 """
 
         self.assertTrue(looks_like_commit_message(response))
+
+    def test_coerce_commit_message_preserves_summary_and_bullets(self) -> None:
+        response = """Based on the implementation plan and source files, here are my observations:
+Improve document sync flow
+
+This change tightens ingestion validation and cleans up sync behavior.
+
+Backend:
+- Add retry handling in sync worker
+- Update API validation for ingest requests
+"""
+
+        message = coerce_commit_message(
+            response,
+            "## main\nM  backend/app/services.py\nM  backend/app/main.py",
+        )
+
+        self.assertEqual(
+            message,
+            "Improve document sync flow\n\nThis change tightens ingestion validation and cleans up sync behavior.\n\n- Add retry handling in sync worker\n- Update API validation for ingest requests",
+        )
+
+    def test_coerce_commit_message_uses_fallback_subject_when_no_subject_present(self) -> None:
+        response = """Backend:
+Improves validation around uploads and sync retries.
+
+- Add retry handling in sync worker
+- Update API validation for ingest requests
+"""
+
+        message = coerce_commit_message(
+            response,
+            "## main\nM  backend/app/services.py\nM  backend/app/main.py",
+        )
+
+        self.assertEqual(
+            message,
+            "Update 2 files in backend\n\nImproves validation around uploads and sync retries.\n\n- Add retry handling in sync worker\n- Update API validation for ingest requests",
+        )
 
 
 if __name__ == "__main__":

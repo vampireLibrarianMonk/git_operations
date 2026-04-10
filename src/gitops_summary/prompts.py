@@ -10,7 +10,8 @@ COMMIT_SYSTEM_PROMPT = """You write git commit messages for software repositorie
 
 Return only a valid commit message.
 - First line: a concise subject line in imperative mood, ideally 50-72 characters.
-- Optional body: after a blank line, include short bullet points beginning with '- '.
+- Body format: after a blank line, include one short executive-summary paragraph.
+- After that paragraph, you may include short bullet points beginning with '- '.
 - Use only facts supported by the provided git status and diff.
 - Never write project reviews, implementation assessments, phase alignment notes, TODO lists, or advice.
 - Never say things like 'Based on the implementation plan', 'here are my observations', 'overall', or 'let me know'.
@@ -43,6 +44,12 @@ _STRIP_COMMIT_LINE_PREFIXES = (
     "overall ",
 )
 
+_SKIP_COMMIT_SECTION_PREFIXES = (
+    "missing/todo:",
+    "todo:",
+    "remaining work:",
+)
+
 
 def _truncate_commit_subject(subject: str, max_len: int = 72) -> str:
     """Normalize and cap commit subject length."""
@@ -53,6 +60,24 @@ def _truncate_commit_subject(subject: str, max_len: int = 72) -> str:
     if len(normalized) <= max_len:
         return normalized
     return normalized[: max_len - 1].rstrip() + "…"
+
+
+def _is_plausible_commit_subject(line: str) -> bool:
+    """Return True when a line looks like a commit subject."""
+
+    candidate = line.strip()
+    if not candidate:
+        return False
+    if len(candidate) > 90:
+        return False
+    if candidate.startswith(("-", "*", "•")):
+        return False
+    if candidate.endswith((":", "?", ".")):
+        return False
+    lowered = candidate.lower()
+    if any(lowered.startswith(prefix) for prefix in _STRIP_COMMIT_LINE_PREFIXES):
+        return False
+    return True
 
 
 def _parse_status_entries(status: str) -> List[Dict[str, str]]:
@@ -121,8 +146,8 @@ def _display_name(path: str) -> str:
     return path.rsplit("/", 1)[-1]
 
 
-def build_fallback_commit_message(status: str, is_initial_commit: bool = False) -> str:
-    """Build a deterministic commit message when the LLM response is unusable."""
+def build_fallback_commit_subject(status: str, is_initial_commit: bool = False) -> str:
+    """Build only the subject line for a deterministic fallback commit message."""
 
     entries = _parse_status_entries(status)
     if not entries:
@@ -160,7 +185,17 @@ def build_fallback_commit_message(status: str, is_initial_commit: bool = False) 
         if component:
             subject = f"{subject} in {component}"
 
-    subject = _truncate_commit_subject(subject)
+    return _truncate_commit_subject(subject)
+
+
+def build_fallback_commit_message(status: str, is_initial_commit: bool = False) -> str:
+    """Build a deterministic commit message when the LLM response is unusable."""
+
+    entries = _parse_status_entries(status)
+    if not entries:
+        return "Update staged changes"
+
+    subject = build_fallback_commit_subject(status, is_initial_commit=is_initial_commit)
 
     bullets = []
     for entry in entries[:6]:
@@ -214,15 +249,17 @@ def build_prompt(
         format_instructions = (
             "FORMAT FOR LARGE COMMITS (30+ files):\n"
             "1) First line: one concise git commit subject in imperative mood, max 72 characters, no trailing period.\n"
-            "2) Optional body: after one blank line, include 3-6 bullets grouped by major component/theme.\n"
-            "3) Each bullet must begin with '- ' and mention specific files, functions, classes, or behavior changes.\n"
+            "2) Body: after one blank line, include a 2-4 sentence executive summary paragraph covering the main themes.\n"
+            "3) Then include 3-6 bullets grouped by major component/theme.\n"
+            "4) Each bullet must begin with '- ' and mention specific files, functions, classes, or behavior changes.\n"
         )
     else:
         format_instructions = (
             "FORMAT:\n"
             "1) First line: one concise git commit subject in imperative mood, max 72 characters, no trailing period.\n"
-            "2) Optional body: after one blank line, include 1-4 bullets beginning with '- '.\n"
-            "3) Bullets must include concrete technical details, not generic summaries.\n"
+            "2) Body: after one blank line, include a 1-3 sentence executive summary paragraph.\n"
+            "3) Then include 1-4 bullets beginning with '- '.\n"
+            "4) Bullets must include concrete technical details, not generic summaries.\n"
         )
 
     return (
@@ -252,7 +289,8 @@ def build_prompt(
         "OUTPUT FORMAT RULES:\n"
         "- Output must be plain text with no markdown formatting (no ```, no headers, no bold).\n"
         "- Output ONLY the commit message text itself.\n"
-        "- Do NOT write an executive summary, implementation review, project assessment, or plan status update.\n"
+        "- Do write a real commit message with subject line, summary paragraph, and optional bullets.\n"
+        "- Do NOT write a standalone implementation review, project assessment, or plan status update.\n"
         "- Do NOT include phrases like 'Here is the commit message:' or 'Executive Summary:'.\n"
         "- Do NOT wrap output in code blocks or markdown.\n"
         "- Do NOT echo back the git status or git diff.\n"
@@ -349,6 +387,7 @@ def sanitize_commit_response(response: str) -> str:
     """Strip common review/planning boilerplate while preserving commit content."""
 
     sanitized_lines = []
+    skip_section = False
     for line in response.splitlines():
         stripped = line.strip()
         lowered = stripped.lower()
@@ -356,6 +395,12 @@ def sanitize_commit_response(response: str) -> str:
         if not stripped:
             if sanitized_lines and sanitized_lines[-1] != "":
                 sanitized_lines.append("")
+            continue
+
+        if lowered.endswith(":"):
+            skip_section = any(lowered.startswith(prefix) for prefix in _SKIP_COMMIT_SECTION_PREFIXES)
+
+        if skip_section and not lowered.endswith(":"):
             continue
 
         if any(phrase in lowered for phrase in _STRIP_COMMIT_LINES_CONTAINING):
@@ -370,6 +415,44 @@ def sanitize_commit_response(response: str) -> str:
         sanitized_lines.pop()
 
     return "\n".join(sanitized_lines).strip()
+
+
+def coerce_commit_message(response: str, status: str, is_initial_commit: bool = False) -> str:
+    """Convert imperfect model output into a usable commit message when possible."""
+
+    cleaned = clean_commit_response(response)
+    if looks_like_commit_message(cleaned):
+        return cleaned
+
+    if not cleaned:
+        return build_fallback_commit_message(status, is_initial_commit=is_initial_commit)
+
+    narrative_lines = []
+    bullets = []
+    for line in cleaned.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith(("-", "*", "•")):
+            bullets.append("- " + stripped.lstrip("-*• "))
+        else:
+            narrative_lines.append(stripped)
+
+    subject = build_fallback_commit_subject(status, is_initial_commit=is_initial_commit)
+    summary_lines = narrative_lines
+    if narrative_lines and _is_plausible_commit_subject(narrative_lines[0]):
+        subject = _truncate_commit_subject(narrative_lines[0])
+        summary_lines = narrative_lines[1:]
+
+    body_parts = []
+    if summary_lines:
+        body_parts.append(" ".join(summary_lines))
+    if bullets:
+        body_parts.append("\n".join(bullets[:8]))
+
+    if not body_parts:
+        return subject
+    return f"{subject}\n\n" + "\n\n".join(body_parts)
 
 
 def looks_like_commit_message(response: str) -> bool:
@@ -389,6 +472,8 @@ def looks_like_commit_message(response: str) -> bool:
     if len(first_line) > 90:
         return False
     if first_line.startswith(("-", "*", "•")):
+        return False
+    if first_line.endswith("."):
         return False
     if first_line.endswith("?"):
         return False

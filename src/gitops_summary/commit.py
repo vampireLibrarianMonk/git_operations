@@ -22,6 +22,7 @@ from .prompts import (
     build_commit_retry_prompt,
     build_prompt,
     clean_commit_response,
+    coerce_commit_message,
     looks_like_commit_message,
 )
 from .ui import prompt_yes_no
@@ -163,8 +164,17 @@ def commit_workflow() -> int:
 
     message = clean_commit_response(message)
     if not looks_like_commit_message(message):
-        print("[git-commit-summary] Falling back to deterministic commit message...")
-        message = build_fallback_commit_message(status, is_initial_commit=initial_commit)
+        print("[git-commit-summary] Converting model output into commit message format...")
+        coerced_message = coerce_commit_message(
+            message,
+            status,
+            is_initial_commit=initial_commit,
+        )
+        if looks_like_commit_message(coerced_message):
+            message = coerced_message
+        else:
+            print("[git-commit-summary] Falling back to deterministic commit message...")
+            message = build_fallback_commit_message(status, is_initial_commit=initial_commit)
     print(message)
 
     if not prompt_yes_no("Use this message to create a commit?"):
