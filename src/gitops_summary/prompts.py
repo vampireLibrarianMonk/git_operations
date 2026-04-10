@@ -1,8 +1,33 @@
 """Prompt builders and LLM response cleanup helpers."""
 
+import re
 from typing import Dict, List, Optional
 
 from .config import VALID_STATUS_LABELS
+
+
+COMMIT_SYSTEM_PROMPT = """You write git commit messages for software repositories.
+
+Return only a valid commit message.
+- First line: a concise subject line in imperative mood, ideally 50-72 characters.
+- Optional body: after a blank line, include short bullet points beginning with '- '.
+- Use only facts supported by the provided git status and diff.
+- Never write project reviews, implementation assessments, phase alignment notes, TODO lists, or advice.
+- Never say things like 'Based on the implementation plan', 'here are my observations', 'overall', or 'let me know'.
+- Never ask follow-up questions.
+"""
+
+
+_INVALID_COMMIT_PHRASES = (
+    "based on the implementation plan",
+    "based on the source files",
+    "here are my observations",
+    "overall the core is in place",
+    "phase 1",
+    "missing/todo",
+    "let me know if you need",
+    "alignment with",
+)
 
 
 def build_prompt(
@@ -26,27 +51,26 @@ def build_prompt(
             "- Avoid describing the work like a routine follow-up update with words such as 'updated' or 'modified' unless the diff clearly requires that wording.\n"
         )
 
-    # Count files from status to adjust instructions for large commits
+    # Count files from status to adjust detail level for larger commits.
     file_count = len([line for line in status.split("\n") if line.strip()])
 
     if file_count > 30:
         format_instructions = (
             "FORMAT FOR LARGE COMMITS (30+ files):\n"
-            "1) Executive summary paragraph (3-5 sentences) covering the major themes.\n"
-            "2) Group changes by directory/component, listing files with specific changes:\n"
-            "   Example:\n"
-            "   app/chat/patterns/:\n"
-            "   - detail_patterns.py [NEW]: Added CVEDetailPattern and IAVMDetailPattern classes for fetching vulnerability details with LLM narratives\n"
-            "   - asset_patterns.py: Added ListAssetsPattern, AssetsInNetworkPattern, TopNetworksPattern classes\n"
-            "   - count_patterns.py: Modified CountSeverityPattern.matches() to exclude image queries; simplified CountUniquePattern.execute() return value\n"
+            "1) First line: one concise git commit subject in imperative mood, max 72 characters, no trailing period.\n"
+            "2) Optional body: after one blank line, include 3-6 bullets grouped by major component/theme.\n"
+            "3) Each bullet must begin with '- ' and mention specific files, functions, classes, or behavior changes.\n"
         )
     else:
         format_instructions = (
-            "FORMAT:\n" "1) Executive summary paragraph (2-4 sentences).\n" "2) Bulleted list of each changed file with a specific summary of changes.\n"
+            "FORMAT:\n"
+            "1) First line: one concise git commit subject in imperative mood, max 72 characters, no trailing period.\n"
+            "2) Optional body: after one blank line, include 1-4 bullets beginning with '- '.\n"
+            "3) Bullets must include concrete technical details, not generic summaries.\n"
         )
 
     return (
-        "You are a senior engineering assistant creating git commit messages.\n"
+        "You are generating ONE git commit message for the staged changes below.\n"
         f"{format_instructions}\n\n"
         "CRITICAL RULES FOR ACCURACY:\n"
         "- SKIP files that have no visible changes in the diff "
@@ -72,16 +96,43 @@ def build_prompt(
         "OUTPUT FORMAT RULES:\n"
         "- Output must be plain text with no markdown formatting (no ```, no headers, no bold).\n"
         "- Output ONLY the commit message text itself.\n"
+        "- Do NOT write an executive summary, implementation review, project assessment, or plan status update.\n"
         "- Do NOT include phrases like 'Here is the commit message:' or 'Executive Summary:'.\n"
         "- Do NOT wrap output in code blocks or markdown.\n"
         "- Do NOT echo back the git status or git diff.\n"
-        "- Start directly with the summary paragraph.\n\n"
+        "- Do NOT mention implementation plans, phases, alignment, observations, missing work, or TODOs.\n"
+        "- Start directly with the commit subject line.\n\n"
         f"{initial_commit_section}"
         "Git status:\n"
         f"{status}\n\n"
         "Git diff:\n"
         f"{diff}"
         f"{new_files_section}"
+    )
+
+
+def build_commit_retry_prompt(
+    status: str,
+    diff: str,
+    new_files: Optional[List[str]] = None,
+    is_initial_commit: bool = False,
+    invalid_response: str = "",
+) -> str:
+    """Build a stricter retry prompt when the model returns analysis instead of a commit."""
+
+    base_prompt = build_prompt(
+        status,
+        diff,
+        new_files,
+        is_initial_commit=is_initial_commit,
+    )
+    return (
+        f"{base_prompt}\n\n"
+        "The previous answer was invalid because it was not a git commit message.\n"
+        "Rewrite from scratch as a real commit message.\n"
+        "Do not preserve any review or assessment language from the invalid answer.\n"
+        "Invalid answer:\n"
+        f"{invalid_response}\n"
     )
 
 
@@ -110,6 +161,8 @@ def clean_commit_response(response: str) -> str:
                     "the commit message",
                     "commit message:",
                     "executive summary:",
+                    "summary:",
+                    "subject:",
                     "```",
                 ]
             ):
@@ -121,13 +174,53 @@ def clean_commit_response(response: str) -> str:
         if stripped == "```":
             break
 
+        if stripped.lower().startswith("let me know if you need"):
+            break
+
         cleaned_lines.append(line)
 
     # Remove trailing empty lines
     while cleaned_lines and not cleaned_lines[-1].strip():
         cleaned_lines.pop()
 
-    return "\n".join(cleaned_lines)
+    cleaned = "\n".join(cleaned_lines).strip()
+    cleaned = re.sub(r"^#+\s*", "", cleaned, flags=re.MULTILINE)
+    cleaned = cleaned.replace("**", "")
+    return cleaned
+
+
+def looks_like_commit_message(response: str) -> bool:
+    """Heuristic guard to reject review-style output in commit workflow."""
+
+    cleaned = clean_commit_response(response)
+    if not cleaned:
+        return False
+
+    lowered = cleaned.lower()
+    if any(phrase in lowered for phrase in _INVALID_COMMIT_PHRASES):
+        return False
+
+    first_line = cleaned.splitlines()[0].strip()
+    if not first_line:
+        return False
+    if len(first_line) > 90:
+        return False
+    if first_line.startswith(("-", "*", "•")):
+        return False
+    if first_line.endswith("?"):
+        return False
+
+    disallowed_prefixes = (
+        "backend",
+        "frontend",
+        "missing/todo",
+        "overall",
+        "observations",
+    )
+    if any(first_line.lower().startswith(prefix) for prefix in disallowed_prefixes):
+        return False
+
+    return True
 
 
 def build_mapping_prompt(

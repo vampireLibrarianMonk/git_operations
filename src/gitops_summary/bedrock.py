@@ -7,10 +7,14 @@ import json
 from .config import MAX_TOKENS_COMMIT, MODEL_ID
 
 
-def call_bedrock(prompt: str, max_tokens: int = MAX_TOKENS_COMMIT) -> str:
+def call_bedrock(
+    prompt: str,
+    max_tokens: int = MAX_TOKENS_COMMIT,
+    system_prompt: str | None = None,
+) -> str:
     """Backward-compatible Bedrock helper used by existing workflows."""
 
-    return invoke_bedrock_text(prompt, max_tokens=max_tokens)
+    return invoke_bedrock_text(prompt, max_tokens=max_tokens, system_prompt=system_prompt)
 
 
 def invoke_bedrock_text(

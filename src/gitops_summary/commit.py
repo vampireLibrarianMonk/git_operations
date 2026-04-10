@@ -16,7 +16,13 @@ from .git_ops import (
     run_git_command,
     run_git_command_allow_failure,
 )
-from .prompts import build_prompt, clean_commit_response
+from .prompts import (
+    COMMIT_SYSTEM_PROMPT,
+    build_commit_retry_prompt,
+    build_prompt,
+    clean_commit_response,
+    looks_like_commit_message,
+)
 from .ui import prompt_yes_no
 
 
@@ -139,12 +145,29 @@ def commit_workflow() -> int:
     )
     try:
         print("[git-commit-summary] Sending request to Bedrock...")
-        message = call_bedrock(prompt)
+        message = call_bedrock(prompt, system_prompt=COMMIT_SYSTEM_PROMPT)
+        if not looks_like_commit_message(message):
+            print("[git-commit-summary] Model returned non-commit output, retrying with stricter instructions...")
+            retry_prompt = build_commit_retry_prompt(
+                status,
+                staged_diff,
+                new_files,
+                is_initial_commit=initial_commit,
+                invalid_response=message,
+            )
+            message = call_bedrock(retry_prompt, system_prompt=COMMIT_SYSTEM_PROMPT)
     except Exception as exc:
         print(f"Bedrock request failed: {exc}", file=sys.stderr)
         return 1
 
     message = clean_commit_response(message)
+    if not looks_like_commit_message(message):
+        print(
+            "Bedrock returned output that does not look like a commit message. "
+            "Please rerun or adjust the staged diff.",
+            file=sys.stderr,
+        )
+        return 1
     print(message)
 
     if not prompt_yes_no("Use this message to create a commit?"):
