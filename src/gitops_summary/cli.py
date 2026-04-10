@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 
 from .commit import commit_workflow
+from .diagram_prompts import get_supported_diagram_types
+from .diagrams import diagrams_workflow
 from .docs import generate_readme, print_manual
 from .epic import epic_workflow
 from .weekly import resolve_weekly_date_range, weekly_issues_workflow, weekly_workflow
@@ -25,6 +27,9 @@ Examples:
   gitops-summary epic --update       # Post AI status updates (with manual review)
   gitops-summary epic --map          # Re-map code paths to issues
   gitops-summary epic --labels       # Debug: show status labels
+  gitops-summary diagrams            # Generate PlantUML diagrams for the repo
+  gitops-summary diagrams --list-types
+  gitops-summary diagrams --type architecture --type sequence --format svg
   gitops-summary --manual            # Show full user manual
   gitops-summary --generate-md       # Generate README file
 
@@ -95,6 +100,50 @@ Update workflow (--update):
         help="Debug: Show all status-related labels",
     )
 
+    diagrams_parser = subparsers.add_parser(
+        "diagrams",
+        help="Generate or render PlantUML diagrams",
+    )
+    diagrams_parser.add_argument(
+        "--repo",
+        default=".",
+        help="Path to the repository to analyze (default: current directory)",
+    )
+    diagrams_parser.add_argument(
+        "--output",
+        default="docs/diagrams",
+        help="Directory for .puml and rendered files",
+    )
+    diagrams_parser.add_argument(
+        "--type",
+        dest="diagram_types",
+        action="append",
+        choices=get_supported_diagram_types(),
+        help="Diagram type to generate (repeatable)",
+    )
+    diagrams_parser.add_argument(
+        "--format",
+        dest="output_format",
+        default="png",
+        choices=["png", "svg", "txt"],
+        help="Rendered output format",
+    )
+    diagrams_parser.add_argument(
+        "--model",
+        default=None,
+        help="Override the Bedrock model ID",
+    )
+    diagrams_parser.add_argument(
+        "--render-only",
+        action="store_true",
+        help="Render existing PlantUML source files without calling Bedrock",
+    )
+    diagrams_parser.add_argument(
+        "--list-types",
+        action="store_true",
+        help="List supported diagram types and exit",
+    )
+
     return parser
 
 
@@ -120,6 +169,8 @@ def main() -> int:
         return weekly_workflow(start_date, end_date)
     if args.mode == "epic":
         return epic_workflow(args)
+    if args.mode == "diagrams":
+        return diagrams_workflow(args)
 
     parser.print_help()
     return 0

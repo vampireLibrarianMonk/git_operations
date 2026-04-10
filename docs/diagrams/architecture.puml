@@ -1,0 +1,31 @@
+@startuml
+!theme plain
+
+title gitops-summary Architecture
+
+actor User
+
+package "gitops-summary CLI" {
+  component "CLI" as cli
+  component "Git Operations" as git_ops
+  component "Prompts" as prompts
+  component "Bedrock" as bedrock
+  component "GitLab" as gitlab
+}
+
+database "Git Repository" as repo
+cloud "AWS Bedrock" as aws_bedrock
+cloud "GitLab" as gitlab_cloud
+
+User --> cli
+cli --> git_ops
+cli --> prompts
+prompts --> bedrock
+bedrock --> aws_bedrock
+cli --> gitlab
+gitlab --> gitlab_cloud
+
+git_ops --> repo
+gitlab --> repo
+
+@enduml
