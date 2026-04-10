@@ -29,6 +29,162 @@ _INVALID_COMMIT_PHRASES = (
     "alignment with",
 )
 
+_STRIP_COMMIT_LINES_CONTAINING = (
+    "based on the implementation plan",
+    "based on the source files",
+    "here are my observations",
+    "let me know if you need",
+)
+
+_STRIP_COMMIT_LINE_PREFIXES = (
+    "backend:",
+    "frontend:",
+    "missing/todo:",
+    "overall ",
+)
+
+
+def _truncate_commit_subject(subject: str, max_len: int = 72) -> str:
+    """Normalize and cap commit subject length."""
+
+    normalized = re.sub(r"\s+", " ", subject).strip().rstrip(".")
+    if not normalized:
+        normalized = "Update staged changes"
+    if len(normalized) <= max_len:
+        return normalized
+    return normalized[: max_len - 1].rstrip() + "…"
+
+
+def _parse_status_entries(status: str) -> List[Dict[str, str]]:
+    """Parse `git status -sb` lines into structured change entries."""
+
+    entries: List[Dict[str, str]] = []
+    for raw_line in status.splitlines():
+        if not raw_line.strip() or raw_line.startswith("##"):
+            continue
+
+        code = raw_line[:2]
+        path_text = raw_line[3:].strip() if len(raw_line) > 3 else ""
+        if not path_text:
+            continue
+
+        primary_code = code[0] if code and code[0] != " " else code[1]
+        action = {
+            "A": "add",
+            "D": "delete",
+            "M": "modify",
+            "R": "rename",
+            "C": "copy",
+            "?": "add",
+        }.get(primary_code, "update")
+
+        if action == "rename" and " -> " in path_text:
+            old_path, new_path = [part.strip() for part in path_text.split(" -> ", 1)]
+            entries.append(
+                {
+                    "action": action,
+                    "path": old_path,
+                    "new_path": new_path,
+                }
+            )
+            continue
+
+        entries.append(
+            {
+                "action": action,
+                "path": path_text,
+                "new_path": "",
+            }
+        )
+
+    return entries
+
+
+def _top_level_component(entries: List[Dict[str, str]]) -> str:
+    """Return a shared top-level directory name when one is obvious."""
+
+    components = []
+    for entry in entries:
+        path = entry.get("new_path") or entry["path"]
+        if "/" not in path:
+            continue
+        components.append(path.split("/", 1)[0])
+
+    if components and len(set(components)) == 1:
+        return components[0]
+    return ""
+
+
+def _display_name(path: str) -> str:
+    """Return basename-like display name for a repo path."""
+
+    return path.rsplit("/", 1)[-1]
+
+
+def build_fallback_commit_message(status: str, is_initial_commit: bool = False) -> str:
+    """Build a deterministic commit message when the LLM response is unusable."""
+
+    entries = _parse_status_entries(status)
+    if not entries:
+        return "Update staged changes"
+
+    component = _top_level_component(entries)
+    actions = {entry["action"] for entry in entries}
+    count = len(entries)
+
+    if is_initial_commit:
+        subject = "Bootstrap project scaffolding"
+        if component:
+            subject = f"Bootstrap {component} project scaffolding"
+    elif count == 1:
+        entry = entries[0]
+        path = entry.get("new_path") or entry["path"]
+        if entry["action"] == "add":
+            subject = f"Add {_display_name(path)}"
+        elif entry["action"] == "delete":
+            subject = f"Remove {_display_name(path)}"
+        elif entry["action"] == "rename":
+            subject = f"Rename {_display_name(entry['path'])} to {_display_name(entry['new_path'])}"
+        else:
+            subject = f"Update {_display_name(path)}"
+    else:
+        if actions == {"add"}:
+            subject = f"Add {count} new files"
+        elif actions <= {"modify", "update"}:
+            subject = f"Update {count} files"
+        elif actions == {"delete"}:
+            subject = f"Remove {count} files"
+        else:
+            subject = "Update staged changes"
+
+        if component:
+            subject = f"{subject} in {component}"
+
+    subject = _truncate_commit_subject(subject)
+
+    bullets = []
+    for entry in entries[:6]:
+        action = entry["action"]
+        path = entry["path"]
+        new_path = entry.get("new_path") or ""
+
+        if action == "add":
+            bullets.append(f"- Add {path}")
+        elif action == "delete":
+            bullets.append(f"- Remove {path}")
+        elif action == "rename":
+            bullets.append(f"- Rename {path} to {new_path}")
+        elif action == "copy":
+            bullets.append(f"- Copy {path}")
+        else:
+            bullets.append(f"- Update {path}")
+
+    remaining = len(entries) - len(bullets)
+    if remaining > 0:
+        bullets.append(f"- Update {remaining} additional file(s)")
+
+    return subject if not bullets else f"{subject}\n\n" + "\n".join(bullets)
+
 
 def build_prompt(
     status: str,
@@ -186,7 +342,34 @@ def clean_commit_response(response: str) -> str:
     cleaned = "\n".join(cleaned_lines).strip()
     cleaned = re.sub(r"^#+\s*", "", cleaned, flags=re.MULTILINE)
     cleaned = cleaned.replace("**", "")
-    return cleaned
+    return sanitize_commit_response(cleaned)
+
+
+def sanitize_commit_response(response: str) -> str:
+    """Strip common review/planning boilerplate while preserving commit content."""
+
+    sanitized_lines = []
+    for line in response.splitlines():
+        stripped = line.strip()
+        lowered = stripped.lower()
+
+        if not stripped:
+            if sanitized_lines and sanitized_lines[-1] != "":
+                sanitized_lines.append("")
+            continue
+
+        if any(phrase in lowered for phrase in _STRIP_COMMIT_LINES_CONTAINING):
+            continue
+
+        if any(lowered.startswith(prefix) for prefix in _STRIP_COMMIT_LINE_PREFIXES):
+            continue
+
+        sanitized_lines.append(stripped)
+
+    while sanitized_lines and not sanitized_lines[-1]:
+        sanitized_lines.pop()
+
+    return "\n".join(sanitized_lines).strip()
 
 
 def looks_like_commit_message(response: str) -> bool:

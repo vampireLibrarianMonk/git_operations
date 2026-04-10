@@ -2,9 +2,11 @@ import unittest
 
 from gitops_summary.prompts import (
     build_commit_retry_prompt,
+    build_fallback_commit_message,
     build_prompt,
     clean_commit_response,
     looks_like_commit_message,
+    sanitize_commit_response,
 )
 
 
@@ -60,6 +62,60 @@ Backend:
 """
 
         self.assertTrue(looks_like_commit_message(commit_message))
+
+    def test_build_fallback_commit_message_for_single_file(self) -> None:
+        message = build_fallback_commit_message("## main\nM  src/gitops_summary/commit.py")
+
+        self.assertEqual(
+            message,
+            "Update commit.py\n\n- Update src/gitops_summary/commit.py",
+        )
+
+    def test_build_fallback_commit_message_for_multiple_files(self) -> None:
+        message = build_fallback_commit_message(
+            "## main\nM  src/gitops_summary/commit.py\nM  src/gitops_summary/prompts.py",
+        )
+
+        self.assertEqual(
+            message,
+            "Update 2 files in src\n\n- Update src/gitops_summary/commit.py\n- Update src/gitops_summary/prompts.py",
+        )
+
+    def test_build_fallback_commit_message_handles_rename(self) -> None:
+        message = build_fallback_commit_message("## main\nR  old_name.py -> new_name.py")
+
+        self.assertEqual(
+            message,
+            "Rename old_name.py to new_name.py\n\n- Rename old_name.py to new_name.py",
+        )
+
+    def test_sanitize_commit_response_strips_planning_language_but_keeps_commit(self) -> None:
+        response = """Based on the implementation plan and source files, here are my observations:
+Update search ingestion flow
+
+Backend:
+- Add upload validation for PDF and DOCX files
+- Tighten chunk persistence in storage.py
+
+Let me know if you need any specific areas investigated further!
+"""
+
+        sanitized = sanitize_commit_response(response)
+
+        self.assertEqual(
+            sanitized,
+            "Update search ingestion flow\n\n- Add upload validation for PDF and DOCX files\n- Tighten chunk persistence in storage.py",
+        )
+
+    def test_looks_like_commit_message_accepts_sanitized_commit_with_phase_language_removed(self) -> None:
+        response = """Based on the implementation plan and source files, here are my observations on alignment with Phase 1:
+Improve document sync flow
+
+- Add retry handling in sync worker
+- Update API validation for ingest requests
+"""
+
+        self.assertTrue(looks_like_commit_message(response))
 
 
 if __name__ == "__main__":

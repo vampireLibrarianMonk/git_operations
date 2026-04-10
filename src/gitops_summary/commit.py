@@ -18,6 +18,7 @@ from .git_ops import (
 )
 from .prompts import (
     COMMIT_SYSTEM_PROMPT,
+    build_fallback_commit_message,
     build_commit_retry_prompt,
     build_prompt,
     clean_commit_response,
@@ -162,12 +163,8 @@ def commit_workflow() -> int:
 
     message = clean_commit_response(message)
     if not looks_like_commit_message(message):
-        print(
-            "Bedrock returned output that does not look like a commit message. "
-            "Please rerun or adjust the staged diff.",
-            file=sys.stderr,
-        )
-        return 1
+        print("[git-commit-summary] Falling back to deterministic commit message...")
+        message = build_fallback_commit_message(status, is_initial_commit=initial_commit)
     print(message)
 
     if not prompt_yes_no("Use this message to create a commit?"):
