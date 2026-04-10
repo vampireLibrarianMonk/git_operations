@@ -23,8 +23,9 @@ _INVALID_COMMIT_PHRASES = (
     "based on the implementation plan",
     "based on the source files",
     "here are my observations",
+    "implementation plan",
+    "let me review",
     "overall the core is in place",
-    "phase 1",
     "missing/todo",
     "let me know if you need",
     "alignment with",
@@ -34,19 +35,24 @@ _STRIP_COMMIT_LINES_CONTAINING = (
     "based on the implementation plan",
     "based on the source files",
     "here are my observations",
+    "let me review",
     "let me know if you need",
 )
 
 _STRIP_COMMIT_LINE_PREFIXES = (
     "backend:",
     "frontend:",
+    "key deliverables:",
     "missing/todo:",
     "overall ",
+    "the frontend contains:",
+    "the backend contains:",
 )
 
 _SKIP_COMMIT_SECTION_PREFIXES = (
     "missing/todo:",
     "todo:",
+    "next steps",
     "remaining work:",
 )
 
@@ -399,6 +405,8 @@ def sanitize_commit_response(response: str) -> str:
 
         if lowered.endswith(":"):
             skip_section = any(lowered.startswith(prefix) for prefix in _SKIP_COMMIT_SECTION_PREFIXES)
+            if skip_section:
+                continue
 
         if skip_section and not lowered.endswith(":"):
             continue
@@ -462,10 +470,6 @@ def looks_like_commit_message(response: str) -> bool:
     if not cleaned:
         return False
 
-    lowered = cleaned.lower()
-    if any(phrase in lowered for phrase in _INVALID_COMMIT_PHRASES):
-        return False
-
     first_line = cleaned.splitlines()[0].strip()
     if not first_line:
         return False
@@ -473,9 +477,15 @@ def looks_like_commit_message(response: str) -> bool:
         return False
     if first_line.startswith(("-", "*", "•")):
         return False
+    if first_line.endswith(":"):
+        return False
     if first_line.endswith("."):
         return False
     if first_line.endswith("?"):
+        return False
+
+    first_line_lower = first_line.lower()
+    if any(phrase in first_line_lower for phrase in _INVALID_COMMIT_PHRASES):
         return False
 
     disallowed_prefixes = (

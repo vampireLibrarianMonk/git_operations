@@ -127,6 +127,16 @@ Improve document sync flow
 
         self.assertTrue(looks_like_commit_message(response))
 
+    def test_looks_like_commit_message_allows_phase_in_real_commit_subject(self) -> None:
+        response = """Implement Phase 1 MVP with local ingestion and in-memory search
+
+This commit delivers the initial MVP implementation.
+
+- Define Pydantic models for request and response schemas
+"""
+
+        self.assertTrue(looks_like_commit_message(response))
+
     def test_coerce_commit_message_preserves_summary_and_bullets(self) -> None:
         response = """Based on the implementation plan and source files, here are my observations:
 Improve document sync flow
@@ -164,6 +174,25 @@ Improves validation around uploads and sync retries.
         self.assertEqual(
             message,
             "Update 2 files in backend\n\nImproves validation around uploads and sync retries.\n\n- Add retry handling in sync worker\n- Update API validation for ingest requests",
+        )
+
+    def test_sanitize_commit_response_drops_next_steps_section(self) -> None:
+        response = """Implement Phase 1 MVP with local ingestion and in-memory search
+
+This commit delivers the initial MVP implementation.
+
+- Define Pydantic models for request and response schemas
+
+Next steps:
+- Integrate OpenSearch
+- Wire up Bedrock
+"""
+
+        sanitized = sanitize_commit_response(response)
+
+        self.assertEqual(
+            sanitized,
+            "Implement Phase 1 MVP with local ingestion and in-memory search\n\nThis commit delivers the initial MVP implementation.\n\n- Define Pydantic models for request and response schemas",
         )
 
 
