@@ -56,6 +56,16 @@ pip install "git+https://github.com/vampireLibrarianMonk/git_operations.git"
 
 Why: `pip install https://github.com/...` downloads the GitHub HTML page/repo endpoint, which is not a Python source archive, so pip cannot unpack it. The `git+https://...` form tells pip to clone the repository and build/install the package from `pyproject.toml`.
 
+### Update to latest version
+
+If you already have the package installed and need to pick up new fixes:
+
+```bash
+pip install --force-reinstall "git+https://github.com/vampireLibrarianMonk/git_operations.git"
+```
+
+This forces pip to re-clone and rebuild even if the version number hasn't changed.
+
 After install, the CLI command is:
 
 ```bash
