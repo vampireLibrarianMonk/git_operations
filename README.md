@@ -151,7 +151,22 @@ The tool also ensures relevant entries are in `.gitignore`.
 
 ## Daily Operations (Runbook)
 
-## 1) Commit workflow
+## 1) Model selection
+
+```bash
+gitops-summary model
+```
+
+What happens:
+
+1. Shows the currently configured Bedrock model
+2. Presents available model families (Claude, Llama, Mistral, Amazon Nova)
+3. Lets you pick a specific model within the chosen family
+4. Persists the selection to `.venv/.bedrock_model_config.json`
+
+All subsequent Bedrock calls (commit summaries, weekly reports, diagrams, epic updates) use the selected model automatically.
+
+## 2) Commit workflow
 
 ```bash
 gitops-summary commit
@@ -165,7 +180,7 @@ What happens:
 4. Asks for confirmation before committing
 5. Optionally pushes (sets upstream if missing)
 
-## 2) Weekly summary workflow
+## 3) Weekly summary workflow
 
 ### Commit-based weekly summary
 
@@ -185,7 +200,7 @@ gitops-summary weekly --start-date 2026-01-01 --days 7
 gitops-summary weekly --issues
 ```
 
-## 3) Epic tracking workflow
+## 4) Epic tracking workflow
 
 ```bash
 gitops-summary epic --status
@@ -200,7 +215,7 @@ gitops-summary epic --labels
 - Approve label changes individually
 - Approve close/reopen actions individually
 
-## 4) Diagrams workflow
+## 5) Diagrams workflow
 
 The `diagrams` command analyzes a repository, asks Bedrock to generate PlantUML, writes the `.puml` source files, and then renders them to an output format such as PNG or SVG.
 
@@ -351,6 +366,7 @@ If `boto3` is missing in your current interpreter, run the CLI from the project 
 gitops-summary --manual
 gitops-summary --generate-md
 
+gitops-summary model
 gitops-summary commit
 gitops-summary weekly [--issues] [--start-date YYYY-MM-DD --days N]
 gitops-summary epic [--setup|--status|--update|--map|--labels]
@@ -377,6 +393,7 @@ gitops-summary diagrams [--repo PATH] [--output DIR] [--type NAME ...] [--format
         ├── engine.py
         ├── epic.py
         ├── git_ops.py
+        ├── model.py
         ├── prompts.py
         ├── ui.py
         ├── weekly.py
