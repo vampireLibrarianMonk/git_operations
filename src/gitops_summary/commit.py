@@ -131,13 +131,26 @@ def commit_workflow() -> int:
         print("No staged changes to commit (script-generated files are auto-excluded).")
         return 0
 
+    # Count files detected vs files included in prompt
+    total_diff_files = len(
+        [l for l in run_git_command(["diff", "--cached", "--name-only"]).splitlines() if l.strip()]
+    )
+    prompt_diff_files = len(
+        [l for l in staged_diff.splitlines() if l.startswith("diff --git ")]
+    )
+
     # Get list of newly added files (to distinguish from modifications)
     new_files = get_new_files_from_staged()
     initial_commit = is_initial_commit()
 
     if len(staged_diff) > MAX_DIFF_CHARS:
         staged_diff = staged_diff[:MAX_DIFF_CHARS] + "\n... (diff truncated)"
+        prompt_diff_files = len(
+            [l for l in staged_diff.splitlines() if l.startswith("diff --git ")]
+        )
 
+    print(f"[git-commit-summary] Files staged: {total_diff_files} | Files in prompt: {prompt_diff_files}"
+          + (f" (diff truncated to {MAX_DIFF_CHARS // 1000}K chars)" if len(staged_diff) > MAX_DIFF_CHARS else ""))
     print("[git-commit-summary] Preparing prompt...")
     prompt = build_prompt(
         status,

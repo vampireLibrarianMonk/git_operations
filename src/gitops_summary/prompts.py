@@ -248,8 +248,27 @@ def build_prompt(
             "- Avoid describing the work like a routine follow-up update with words such as 'updated' or 'modified' unless the diff clearly requires that wording.\n"
         )
 
-    # Count files from status to adjust detail level for larger commits.
-    file_count = len([line for line in status.split("\n") if line.strip()])
+    # Build a manifest of all changed files so the model has an explicit checklist.
+    status_lines = [line for line in status.split("\n") if line.strip()]
+    file_count = len(status_lines)
+
+    changed_files = []
+    for line in status_lines:
+        # git status -sb first line is branch info (starts with ##), skip it
+        if line.startswith("##"):
+            continue
+        # Extract filename from status line (format: "XY filename" or "XY old -> new")
+        parts = line.strip()
+        if len(parts) > 3:
+            changed_files.append(parts[3:].strip())
+
+    files_manifest_section = ""
+    if changed_files:
+        manifest_list = "\n".join(f"  - {f}" for f in changed_files)
+        files_manifest_section = (
+            f"\n\nALL CHANGED FILES ({len(changed_files)} total — each must be addressed in the commit body):\n"
+            f"{manifest_list}\n"
+        )
 
     if file_count > 30:
         format_instructions = (
@@ -272,6 +291,8 @@ def build_prompt(
         "You are generating ONE git commit message for the staged changes below.\n"
         f"{format_instructions}\n\n"
         "CRITICAL RULES FOR ACCURACY:\n"
+        "- EVERY file that appears in the diff with actual code/content changes MUST be mentioned "
+        "in the commit message body. Do not focus only on the largest or newest file.\n"
         "- SKIP files that have no visible changes in the diff "
         "(e.g., whitespace-only or formatting-only changes with no actual code diff). "
         "Do NOT list them or say 'No changes'.\n"
@@ -308,6 +329,7 @@ def build_prompt(
         "Git diff:\n"
         f"{diff}"
         f"{new_files_section}"
+        f"{files_manifest_section}"
     )
 
 
