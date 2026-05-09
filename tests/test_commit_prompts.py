@@ -71,7 +71,7 @@ Backend:
 
         self.assertEqual(
             message,
-            "Update commit.py\n\n- Update src/gitops_summary/commit.py",
+            "Update commit.py\n\nModified:\n- src/gitops_summary/commit.py",
         )
 
     def test_build_fallback_commit_message_for_multiple_files(self) -> None:
@@ -81,7 +81,7 @@ Backend:
 
         self.assertEqual(
             message,
-            "Update 2 files in src\n\n- Update src/gitops_summary/commit.py\n- Update src/gitops_summary/prompts.py",
+            "Update 2 files in src\n\nModified:\n- src/gitops_summary/commit.py\n- src/gitops_summary/prompts.py",
         )
 
     def test_build_fallback_commit_subject_for_multiple_files(self) -> None:
@@ -96,7 +96,7 @@ Backend:
 
         self.assertEqual(
             message,
-            "Rename old_name.py to new_name.py\n\n- Rename old_name.py to new_name.py",
+            "Rename old_name.py to new_name.py\n\nModified:\n- new_name.py — renamed from old_name.py",
         )
 
     def test_sanitize_commit_response_strips_planning_language_but_keeps_commit(self) -> None:

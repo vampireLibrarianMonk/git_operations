@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 
-from .config import MAX_TOKENS_COMMIT, MODEL_ID
+from .config import MAX_TOKENS_COMMIT
+from .model import load_model_id
 
 
 def call_bedrock(
@@ -53,7 +54,7 @@ def invoke_bedrock_text(
         body["system"] = system_prompt
 
     response = client.invoke_model(
-        modelId=model_id or MODEL_ID,
+        modelId=model_id or load_model_id(),
         body=json.dumps(body),
     )
     payload = json.loads(response["body"].read())

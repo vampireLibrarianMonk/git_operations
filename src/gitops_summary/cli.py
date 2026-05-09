@@ -9,6 +9,7 @@ from .diagram_prompts import get_supported_diagram_types
 from .diagrams import diagrams_workflow
 from .docs import generate_readme, print_manual
 from .epic import epic_workflow
+from .model import model_workflow
 from .weekly import resolve_weekly_date_range, weekly_issues_workflow, weekly_workflow
 
 
@@ -100,6 +101,8 @@ Update workflow (--update):
         help="Debug: Show all status-related labels",
     )
 
+    subparsers.add_parser("model", help="Change the Bedrock model used for generation")
+
     diagrams_parser = subparsers.add_parser(
         "diagrams",
         help="Generate or render PlantUML diagrams",
@@ -169,6 +172,8 @@ def main() -> int:
         return weekly_workflow(start_date, end_date)
     if args.mode == "epic":
         return epic_workflow(args)
+    if args.mode == "model":
+        return model_workflow()
     if args.mode == "diagrams":
         return diagrams_workflow(args)
 

@@ -10,8 +10,11 @@ COMMIT_SYSTEM_PROMPT = """You write git commit messages for software repositorie
 
 Return only a valid commit message.
 - First line: a concise subject line in imperative mood, ideally 50-72 characters.
-- Body format: after a blank line, include one short executive-summary paragraph.
-- After that paragraph, you may include short bullet points beginning with '- '.
+- Body format: after a blank line, include one short executive-summary paragraph (an abstract of the work done).
+- After the summary paragraph, include a blank line then file sections.
+- Group files under "Modified:" and "New:" headings (omit a heading if that category has no files).
+- Under each heading, list files as bullets: "- filename — micro-summary of changes"
+- The micro-summary for each file should be one short phrase describing what changed.
 - Use only facts supported by the provided git status and diff.
 - Never write project reviews, implementation assessments, phase alignment notes, TODO lists, or advice.
 - Never say things like 'Based on the implementation plan', 'here are my observations', 'overall', or 'let me know'.
@@ -203,28 +206,34 @@ def build_fallback_commit_message(status: str, is_initial_commit: bool = False) 
 
     subject = build_fallback_commit_subject(status, is_initial_commit=is_initial_commit)
 
-    bullets = []
-    for entry in entries[:6]:
+    modified = []
+    new = []
+    for entry in entries[:12]:
         action = entry["action"]
         path = entry["path"]
         new_path = entry.get("new_path") or ""
 
         if action == "add":
-            bullets.append(f"- Add {path}")
-        elif action == "delete":
-            bullets.append(f"- Remove {path}")
+            new.append(f"- {path}")
         elif action == "rename":
-            bullets.append(f"- Rename {path} to {new_path}")
-        elif action == "copy":
-            bullets.append(f"- Copy {path}")
+            modified.append(f"- {new_path} — renamed from {path}")
+        elif action == "delete":
+            modified.append(f"- {path} — deleted")
         else:
-            bullets.append(f"- Update {path}")
+            modified.append(f"- {path}")
 
-    remaining = len(entries) - len(bullets)
+    remaining = len(entries) - 12
+    sections = []
+    if modified:
+        sections.append("Modified:\n" + "\n".join(modified))
+    if new:
+        sections.append("New:\n" + "\n".join(new))
     if remaining > 0:
-        bullets.append(f"- Update {remaining} additional file(s)")
+        sections.append(f"({remaining} additional file(s) not listed)")
 
-    return subject if not bullets else f"{subject}\n\n" + "\n".join(bullets)
+    if not sections:
+        return subject
+    return f"{subject}\n\n" + "\n\n".join(sections)
 
 
 def build_prompt(
@@ -274,17 +283,21 @@ def build_prompt(
         format_instructions = (
             "FORMAT FOR LARGE COMMITS (30+ files):\n"
             "1) First line: one concise git commit subject in imperative mood, max 72 characters, no trailing period.\n"
-            "2) Body: after one blank line, include a 2-4 sentence executive summary paragraph covering the main themes.\n"
-            "3) Then include 3-6 bullets grouped by major component/theme.\n"
-            "4) Each bullet must begin with '- ' and mention specific files, functions, classes, or behavior changes.\n"
+            "2) Body: after one blank line, include a 2-4 sentence executive summary paragraph (an abstract of the work done).\n"
+            "3) After another blank line, list files grouped under 'Modified:' and 'New:' headings.\n"
+            "4) Omit a heading if that category has no files.\n"
+            "5) Each file bullet: '- path/to/file — short phrase describing what changed'\n"
+            "6) For large commits you may summarize groups of related files on one bullet.\n"
         )
     else:
         format_instructions = (
             "FORMAT:\n"
             "1) First line: one concise git commit subject in imperative mood, max 72 characters, no trailing period.\n"
-            "2) Body: after one blank line, include a 1-3 sentence executive summary paragraph.\n"
-            "3) Then include 1-4 bullets beginning with '- '.\n"
-            "4) Bullets must include concrete technical details, not generic summaries.\n"
+            "2) Body: after one blank line, include a 1-3 sentence executive summary paragraph (an abstract of the work done).\n"
+            "3) After another blank line, list files grouped under 'Modified:' and 'New:' headings.\n"
+            "4) Omit a heading if that category has no files.\n"
+            "5) Each file bullet: '- path/to/file — short phrase describing what changed'\n"
+            "6) Bullets must include concrete technical details from the diff.\n"
         )
 
     return (
