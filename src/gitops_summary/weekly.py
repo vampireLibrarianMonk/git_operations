@@ -60,17 +60,19 @@ def iter_date_range(start_date: datetime, end_date: datetime) -> List[datetime]:
     return days
 
 
-def get_commits_for_day(date: datetime) -> List[str]:
-    """Get commit hashes for a specific day."""
-    # Use --since (inclusive) and --until (inclusive) with date-only format
-    # to capture all commits on this day
-    day_str = date.strftime("%Y-%m-%d")
-    next_day_str = (date + timedelta(days=1)).strftime("%Y-%m-%d")
+def get_commits_for_day(date: datetime, since: Optional[datetime] = None, until: Optional[datetime] = None) -> List[str]:
+    """Get commit hashes for a specific day.
+
+    If *since* or *until* are provided they override the default
+    midnight-to-midnight boundaries for that edge of the window.
+    """
+    since_str = (since or date).strftime("%Y-%m-%dT%H:%M:%S")
+    until_str = (until or (date + timedelta(days=1))).strftime("%Y-%m-%dT%H:%M:%S")
     result = run_git_command_allow_failure(
         [
             "log",
-            f"--since={day_str}",
-            f"--until={next_day_str}",
+            f"--since={since_str}",
+            f"--until={until_str}",
             "--format=%H",
             "--",
             ".",
@@ -281,11 +283,16 @@ def weekly_workflow(start_date: datetime, end_date: datetime) -> int:
     )
 
     daily_summaries: dict[str, str] = {}
-    for day_date in iter_date_range(start_date, end_date):
+    days = iter_date_range(start_date, end_date)
+    for i, day_date in enumerate(days):
         day_name = day_date.strftime("%A")
 
+        # Use exact timestamps on boundary days
+        since = start_date if i == 0 else None
+        until = end_date if i == len(days) - 1 else None
+
         print(f"[git-weekly-summary] Processing {day_name}...")
-        commits = get_commits_for_day(day_date)
+        commits = get_commits_for_day(day_date, since=since, until=until)
         if not commits:
             print(f"  No commits on {day_name}")
             continue
