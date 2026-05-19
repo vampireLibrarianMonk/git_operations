@@ -51,17 +51,19 @@ pip install .
 Use pip's VCS URL format, not the plain repository URL:
 
 ```bash
-pip install "git+https://github.com/vampireLibrarianMonk/git_operations.git"
+pip install --no-build-isolation "git+https://github.com/vampireLibrarianMonk/git_operations.git"
 ```
 
 Why: `pip install https://github.com/...` downloads the GitHub HTML page/repo endpoint, which is not a Python source archive, so pip cannot unpack it. The `git+https://...` form tells pip to clone the repository and build/install the package from `pyproject.toml`.
+
+> **Note:** The `--no-build-isolation` flag is required if your system setuptools is older than version 68. Without it, pip may install the package as `UNKNOWN 0.0.0` with no entry points. Alternatively, upgrade setuptools first: `pip install --upgrade setuptools>=68 wheel`.
 
 ### Update to latest version
 
 If you already have the package installed and need to pick up new fixes:
 
 ```bash
-pip install --force-reinstall "git+https://github.com/vampireLibrarianMonk/git_operations.git"
+pip install --no-build-isolation --force-reinstall "git+https://github.com/vampireLibrarianMonk/git_operations.git"
 ```
 
 This forces pip to re-clone and rebuild even if the version number hasn't changed.
@@ -407,6 +409,8 @@ gitops-summary diagrams [--repo PATH] [--output DIR] [--type NAME ...] [--format
 
 - **`No module named gitops_summary`**
   - Ensure installation was run from project root: `pip install -e .`
+- **Package installs as `UNKNOWN 0.0.0` with no CLI command**
+  - Your setuptools is too old to read `pyproject.toml` metadata during build isolation. Fix with: `pip install --no-build-isolation .` or upgrade setuptools first: `pip install --upgrade setuptools>=68 wheel`
 - **Bedrock invocation errors**
   - Verify AWS credentials and Bedrock model access permissions
 - **GitLab auth/setup failures**
