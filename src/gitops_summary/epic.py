@@ -545,8 +545,8 @@ def epic_setup() -> int:
     print(f"[epic] {gitignore_status}")
 
     print("\n[epic] Setup complete! You can now use:")
-    print("  gitops-summary epic --status   # View status")
-    print("  gitops-summary epic --update   # Update issues")
+    print("  gitops epic --status   # View status")
+    print("  gitops epic --update   # Update issues")
     return 0
 
 
@@ -612,7 +612,7 @@ def epic_status() -> int:
     """Display current epic and issue status."""
     config = load_gitlab_config()
     if not config:
-        print("[epic] No configuration found. Run: gitops-summary epic --setup")
+        print("[epic] No configuration found. Run: gitops epic --setup")
         return 1
 
     print("\n" + "=" * 60)
@@ -678,7 +678,7 @@ def epic_update() -> int:
     """Update epic child issues with AI-generated status comments."""
     config = load_gitlab_config()
     if not config:
-        print("[epic] No configuration found. Run: gitops-summary epic --setup")
+        print("[epic] No configuration found. Run: gitops epic --setup")
         return 1
 
     print("\n" + "=" * 60)
@@ -1025,7 +1025,7 @@ def epic_remap() -> int:
     """Re-generate code path mappings for issues."""
     config = load_gitlab_config()
     if not config:
-        print("[epic] No configuration found. Run: gitops-summary epic --setup")
+        print("[epic] No configuration found. Run: gitops epic --setup")
         return 1
 
     print("\n[epic] Re-mapping code paths to issues...")
@@ -1059,7 +1059,7 @@ def epic_labels() -> int:
     """Debug: Show all project/group labels containing 'status'."""
     config = load_gitlab_config()
     if not config:
-        print("[epic] No configuration found. Run: gitops-summary epic --setup")
+        print("[epic] No configuration found. Run: gitops epic --setup")
         return 1
 
     print("\n" + "=" * 60)

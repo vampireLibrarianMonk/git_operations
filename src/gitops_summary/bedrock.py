@@ -13,9 +13,18 @@ def call_bedrock(
     max_tokens: int = MAX_TOKENS_COMMIT,
     system_prompt: str | None = None,
 ) -> str:
-    """Backward-compatible Bedrock helper used by existing workflows."""
+    """Backward-compatible Bedrock helper used by existing workflows.
 
-    return invoke_bedrock_text(prompt, max_tokens=max_tokens, system_prompt=system_prompt)
+    Automatically selects the best model for the prompt size if benchmark data exists.
+    """
+    from .benchmark import get_best_model, load_scores
+
+    scores = load_scores()
+    model_id = None
+    if scores:
+        model_id = get_best_model(scores, diff_size=len(prompt))
+
+    return invoke_bedrock_text(prompt, max_tokens=max_tokens, system_prompt=system_prompt, model_id=model_id)
 
 
 def invoke_bedrock_text(
@@ -38,7 +47,41 @@ def invoke_bedrock_text(
             ) from exc
         raise
 
+    resolved_model = model_id or load_model_id()
     client = boto3.client("bedrock-runtime")
+
+    # Nova models use their own format
+    if "nova" in resolved_model:
+        body: dict = {
+            "messages": [{"role": "user", "content": [{"text": prompt}]}],
+            "inferenceConfig": {"maxTokens": max_tokens, "temperature": temperature},
+        }
+        if system_prompt:
+            body["system"] = [{"text": system_prompt}]
+        response = client.invoke_model(modelId=resolved_model, body=json.dumps(body))
+        payload = json.loads(response["body"].read())
+        return "".join(
+            part.get("text", "")
+            for part in payload.get("output", {}).get("message", {}).get("content", [])
+        )
+
+    # Meta, Mistral, DeepSeek — use the Converse API
+    if any(x in resolved_model for x in ("meta.", "mistral.", "deepseek.")):
+        messages = [{"role": "user", "content": [{"text": prompt}]}]
+        kwargs: dict = {
+            "modelId": resolved_model,
+            "messages": messages,
+            "inferenceConfig": {"maxTokens": max_tokens, "temperature": temperature},
+        }
+        if system_prompt:
+            kwargs["system"] = [{"text": system_prompt}]
+        response = client.converse(**kwargs)
+        return "".join(
+            block.get("text", "")
+            for block in response.get("output", {}).get("message", {}).get("content", [])
+        )
+
+    # Anthropic format (default)
     body = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": max_tokens,
@@ -54,7 +97,7 @@ def invoke_bedrock_text(
         body["system"] = system_prompt
 
     response = client.invoke_model(
-        modelId=model_id or load_model_id(),
+        modelId=resolved_model,
         body=json.dumps(body),
     )
     payload = json.loads(response["body"].read())

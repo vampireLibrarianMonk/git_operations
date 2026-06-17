@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
+MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
 
 MAX_DIFF_CHARS = 120_000
 
@@ -40,22 +40,22 @@ A developer productivity tool that uses AWS Bedrock (Claude) to generate intelli
 
 ```bash
 # Generate commit message for current changes
-gitops-summary commit
+gitops commit
 
 # Weekly summary of commits (last 7 days)
-gitops-summary weekly
+gitops weekly
 
 # Weekly summary by GitLab issues
-gitops-summary weekly --issues
+gitops weekly --issues
 
 # Weekly summary for custom range (starts at date, includes N days)
-gitops-summary weekly --start-date 2026-01-01 --days 7  # Jan 1-7 inclusive
+gitops weekly --start-date 2026-01-01 --days 7  # Jan 1-7 inclusive
 
 # Setup GitLab epic tracking
-gitops-summary epic --setup
+gitops epic --setup
 
 # Generate PlantUML diagrams for the current repository
-gitops-summary diagrams
+gitops diagrams
 ```
 
 ## Requirements
@@ -77,7 +77,7 @@ pip install boto3 python-gitlab
 Generates AI-powered commit messages from staged/unstaged changes.
 
 ```bash
-gitops-summary commit
+gitops commit
 ```
 
 - Detects untracked files and prompts to stage them
@@ -89,9 +89,9 @@ gitops-summary commit
 Summarizes the last 7 days of work (rolling window).
 
 ```bash
-gitops-summary weekly                               # Commit-based summary
-gitops-summary weekly --issues                      # Issue-based summary (requires epic setup)
-gitops-summary weekly --start-date 2026-01-01 --days 7  # Custom range: Jan 1-7 inclusive
+gitops weekly                               # Commit-based summary
+gitops weekly --issues                      # Issue-based summary (requires epic setup)
+gitops weekly --start-date 2026-01-01 --days 7  # Custom range: Jan 1-7 inclusive
 ```
 
 ### 3. Epic Mode
@@ -99,11 +99,11 @@ gitops-summary weekly --start-date 2026-01-01 --days 7  # Custom range: Jan 1-7 
 Manages GitLab epic tracking with AI-assisted status updates.
 
 ```bash
-gitops-summary epic --setup     # Initial configuration
-gitops-summary epic --status    # View epic/issue status
-gitops-summary epic --update    # Post AI status updates to issues
-gitops-summary epic --map       # Re-map code paths to issues
-gitops-summary epic --labels    # Debug: show status labels
+gitops epic --setup     # Initial configuration
+gitops epic --status    # View epic/issue status
+gitops epic --update    # Post AI status updates to issues
+gitops epic --map       # Re-map code paths to issues
+gitops epic --labels    # Debug: show status labels
 ```
 
 ### 4. Diagrams Mode
@@ -111,10 +111,10 @@ gitops-summary epic --labels    # Debug: show status labels
 Generates PlantUML diagrams from repository context and renders them to image/text output.
 
 ```bash
-gitops-summary diagrams
-gitops-summary diagrams --type architecture --type sequence
-gitops-summary diagrams --render-only --format svg
-gitops-summary diagrams --list-types
+gitops diagrams
+gitops diagrams --type architecture --type sequence
+gitops diagrams --render-only --format svg
+gitops diagrams --list-types
 ```
 
 - Supports repo-aware architecture, container, data model, flow, and other diagram types
@@ -193,9 +193,9 @@ Configure via:
 ## Other Commands
 
 ```bash
-gitops-summary --manual       # Full user manual
-gitops-summary --generate-md  # Regenerate README.md
-gitops-summary --help         # Show help
+gitops --manual       # Full user manual
+gitops --generate-md  # Regenerate README.md
+gitops --help         # Show help
 ```
 """
 
@@ -206,13 +206,13 @@ MANUAL_TEXT = """
 
 OVERVIEW
 --------
-gitops-summary is a developer productivity tool that uses AWS Bedrock (Claude)
+gitops is a developer productivity tool that uses AWS Bedrock (Claude)
 to generate intelligent summaries and manage GitLab epic tracking.
 
 MODES
 -----
 
-1. COMMIT MODE (gitops-summary commit)
+1. COMMIT MODE (gitops commit)
 
    Generates AI-powered commit messages from your current changes.
 
@@ -227,7 +227,7 @@ MODES
    - Uncommitted changes in your repository
    - AWS credentials configured for Bedrock access
 
-2. WEEKLY MODE (gitops-summary weekly [options])
+2. WEEKLY MODE (gitops weekly [options])
 
    Generates a summary of the last 7 days of work (rolling window).
 
@@ -251,7 +251,7 @@ MODES
    - Executive summary of the week's accomplishments
    - For --issues: per-issue breakdown with commit links
 
-3. EPIC MODE (gitops-summary epic [options])
+3. EPIC MODE (gitops epic [options])
 
    Manages GitLab epic tracking with AI-assisted status updates.
 
@@ -295,7 +295,7 @@ MODES
    - Automatically added to .gitignore
    - Token is stored locally, never committed
 
-4. DIAGRAMS MODE (gitops-summary diagrams [options])
+4. DIAGRAMS MODE (gitops diagrams [options])
 
    Generates PlantUML diagrams from repository context and renders them.
 

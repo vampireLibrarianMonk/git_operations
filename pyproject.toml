@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gitops-summary"
+name = "gitops"
 version = "1.0.0"
 description = "AI-assisted git summaries and GitLab epic operations"
 readme = "README.md"
@@ -14,13 +14,16 @@ dependencies = [
 ]
 
 [project.scripts]
-gitops-summary = "gitops_summary.cli:main"
+gitops = "gitops_summary.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+gitops_summary = ["default_scores.json"]
 
 [tool.black]
 line-length = 160

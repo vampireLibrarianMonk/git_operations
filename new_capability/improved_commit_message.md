@@ -3,7 +3,7 @@
 ## Summary
 
 Add an interactive Bedrock model selection workflow to the CLI. Users can now run
-`gitops-summary model` to choose their preferred model family (Claude, Llama,
+`gitops model` to choose their preferred model family (Claude, Llama,
 Mistral, Amazon Nova) and then select a specific model within that family. The
 selection is persisted locally and used automatically by all subsequent Bedrock
 calls, replacing the previously hard-coded default.

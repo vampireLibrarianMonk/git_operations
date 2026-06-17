@@ -8,7 +8,7 @@ from .bedrock import call_bedrock
 from .config import MAX_DIFF_CHARS, MAX_TOKENS_WEEKLY
 from .epic import _get_current_status_label, get_epic_issues, get_gitlab_client, get_recent_commits_for_paths, load_gitlab_config
 from .git_ops import git_exclude_pathspecs, run_git_command_allow_failure
-from .prompts import build_daily_summary_prompt, build_weekly_rollup_prompt
+from .prompts import build_daily_summary_prompt, build_scrum_prompt, build_weekly_rollup_prompt
 from .ui import Spinner
 
 
@@ -25,16 +25,31 @@ def parse_start_date(date_str: str) -> datetime:
         raise ValueError("start-date must be in YYYY-MM-DD format") from exc
 
 
+def parse_datetime_flexible(dt_str: str) -> datetime:
+    """Parse YYYY-MM-DD or YYYY-MM-DDTHH:MM into a datetime."""
+    for fmt in ("%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(dt_str, fmt)
+        except ValueError:
+            continue
+    raise ValueError(f"Cannot parse '{dt_str}'. Use YYYY-MM-DD or YYYY-MM-DDTHH:MM")
+
+
 def resolve_weekly_date_range(
     start_date_str: Optional[str],
     days: Optional[int],
+    since: Optional[str] = None,
+    until: Optional[str] = None,
 ) -> tuple[datetime, datetime]:
-    """Resolve the weekly date range using optional start-date/days overrides.
+    """Resolve the weekly date range.
 
-    When --start-date and --days are provided, returns a range starting at
-    start_date and including exactly 'days' number of days (inclusive).
-    E.g., --start-date 2026-01-01 --days 7 covers Jan 1-7 inclusive.
+    Priority: --since/--until > --start-date/--days > default (last 7 days).
     """
+    if since:
+        start_date = parse_datetime_flexible(since)
+        end_date = parse_datetime_flexible(until) if until else datetime.now()
+        return start_date, end_date
+
     if start_date_str or days is not None:
         if not start_date_str or days is None:
             raise ValueError("Both --start-date and --days are required together")
@@ -123,7 +138,7 @@ def weekly_issues_workflow(start_date: datetime, end_date: datetime) -> int:
     config = load_gitlab_config()
     if not config:
         print(
-            "[weekly-issues] No GitLab configuration found. Run: gitops-summary epic --setup",
+            "[weekly-issues] No GitLab configuration found. Run: gitops epic --setup",
         )
         return 1
 
@@ -276,7 +291,7 @@ Output plain text only, no markdown headers.
     return 0
 
 
-def weekly_workflow(start_date: datetime, end_date: datetime) -> int:
+def weekly_workflow(start_date: datetime, end_date: datetime, paragraphs: int = 3) -> int:
     """Summarize all commits from the resolved weekly date range."""
     print(
         f"[git-weekly-summary] Analyzing commits from {start_date.date()} to {end_date.date()} (exclusive end)",
@@ -319,7 +334,7 @@ def weekly_workflow(start_date: datetime, end_date: datetime) -> int:
 
     print("\n[git-weekly-summary] Generating weekly rollup...")
     try:
-        rollup_prompt = build_weekly_rollup_prompt(daily_summaries)
+        rollup_prompt = build_weekly_rollup_prompt(daily_summaries, paragraphs=paragraphs)
         weekly_summary = call_bedrock(
             rollup_prompt,
             max_tokens=MAX_TOKENS_WEEKLY,
@@ -334,4 +349,90 @@ def weekly_workflow(start_date: datetime, end_date: datetime) -> int:
     print(weekly_summary)
     print("=" * 60)
 
+    return 0
+
+
+def scrum_workflow(frequency: int = 3) -> int:
+    """Interactive scrum/standup generator.
+
+    Frequency determines the lookback window: 7 / frequency days since last scrum.
+    """
+    days_back = max(1, 7 // frequency)
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days_back)
+
+    print(f"[scrum] Gathering commits from last {days_back} day(s) ({frequency}x/week cadence)")
+    print(f"[scrum] Range: {start_date.strftime('%Y-%m-%d %H:%M')} → {end_date.strftime('%Y-%m-%d %H:%M')}")
+
+    # Collect all commits in the window
+    all_commits: List[str] = []
+    days = iter_date_range(start_date, end_date)
+    for i, day_date in enumerate(days):
+        since = start_date if i == 0 else None
+        until = end_date if i == len(days) - 1 else None
+        commits = get_commits_for_day(day_date, since=since, until=until)
+        all_commits.extend(commits)
+
+    if not all_commits:
+        print("[scrum] No commits found in this window.")
+        return 0
+
+    print(f"[scrum] Found {len(all_commits)} commit(s)")
+
+    diff = get_diff_for_commits(all_commits)
+    if not diff.strip():
+        print("[scrum] No diff content to summarize.")
+        return 0
+
+    if len(diff) > MAX_DIFF_CHARS:
+        diff = diff[:MAX_DIFF_CHARS] + "\n... (truncated)"
+
+    print("[scrum] Generating standup update...")
+    try:
+        prompt = build_scrum_prompt(diff, days_back)
+        update = call_bedrock(prompt).strip()
+    except Exception as exc:
+        print(f"[scrum] Bedrock request failed: {exc}", file=sys.stderr)
+        return 1
+
+    print("\n" + "=" * 60)
+    print("STANDUP UPDATE")
+    print("=" * 60)
+    print(update)
+    print("=" * 60)
+
+    # Interactive: copy or refine
+    print("\n[p] Post as-is  [e] Edit/regenerate  [q] Quit")
+    try:
+        choice = input("Choice: ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return 0
+
+    if choice == "e":
+        try:
+            feedback = input("What to change: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return 0
+        if feedback:
+            retry_prompt = (
+                f"Revise this standup update based on feedback: '{feedback}'\n\n"
+                f"Original update:\n{update}\n\n"
+                f"Original diff:\n{diff[:MAX_DIFF_CHARS // 2]}\n"
+            )
+            try:
+                update = call_bedrock(retry_prompt).strip()
+                print("\n" + "=" * 60)
+                print("REVISED STANDUP")
+                print("=" * 60)
+                print(update)
+                print("=" * 60)
+            except Exception as exc:
+                print(f"[scrum] Revision failed: {exc}", file=sys.stderr)
+
+    if choice == "q":
+        return 0
+
+    print(f"\n[scrum] Done. ({len(all_commits)} commits summarized)")
     return 0

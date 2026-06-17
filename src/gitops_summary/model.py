@@ -12,24 +12,19 @@ MODEL_CONFIG_FILE = Path(".venv") / ".bedrock_model_config.json"
 # Families and their available models on Bedrock
 MODEL_CATALOG: dict[str, list[dict[str, str]]] = {
     "Claude (Anthropic)": [
-        {"id": "anthropic.claude-3-5-sonnet-20241022-v2:0", "name": "Claude 3.5 Sonnet v2"},
-        {"id": "anthropic.claude-3-5-haiku-20241022-v1:0", "name": "Claude 3.5 Haiku"},
-        {"id": "anthropic.claude-3-sonnet-20240229-v1:0", "name": "Claude 3 Sonnet"},
+        {"id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0", "name": "Claude Sonnet 4.5"},
+        {"id": "us.anthropic.claude-haiku-4-5-20251001-v1:0", "name": "Claude Haiku 4.5"},
         {"id": "anthropic.claude-3-haiku-20240307-v1:0", "name": "Claude 3 Haiku"},
     ],
-    "Llama (Meta)": [
-        {"id": "meta.llama3-1-405b-instruct-v1:0", "name": "Llama 3.1 405B Instruct"},
-        {"id": "meta.llama3-1-70b-instruct-v1:0", "name": "Llama 3.1 70B Instruct"},
-        {"id": "meta.llama3-1-8b-instruct-v1:0", "name": "Llama 3.1 8B Instruct"},
-    ],
-    "Mistral": [
-        {"id": "mistral.mistral-large-2407-v1:0", "name": "Mistral Large (24.07)"},
-        {"id": "mistral.mixtral-8x7b-instruct-v0:1", "name": "Mixtral 8x7B Instruct"},
-    ],
-    "Amazon (Titan / Nova)": [
+    "Amazon Nova": [
         {"id": "amazon.nova-pro-v1:0", "name": "Nova Pro"},
         {"id": "amazon.nova-lite-v1:0", "name": "Nova Lite"},
         {"id": "amazon.nova-micro-v1:0", "name": "Nova Micro"},
+    ],
+    "Mistral": [
+        {"id": "mistral.mistral-large-3-675b-instruct", "name": "Mistral Large 3"},
+        {"id": "mistral.devstral-2-123b", "name": "Devstral 2 123B"},
+        {"id": "mistral.ministral-3-14b-instruct", "name": "Ministral 14B"},
     ],
 }
 

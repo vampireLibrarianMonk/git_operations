@@ -1,6 +1,6 @@
-# gitops-summary
+# gitops
 
-`gitops-summary` is a practical CLI for day-to-day engineering workflows:
+`gitops` is a practical CLI for day-to-day engineering workflows:
 
 - Generate high-quality commit summaries from local diffs (with optional commit/push)
 - Produce weekly development summaries
@@ -71,7 +71,7 @@ This forces pip to re-clone and rebuild even if the version number hasn't change
 After install, the CLI command is:
 
 ```bash
-gitops-summary --help
+gitops --help
 ```
 
 You can also run as a module:
@@ -140,7 +140,7 @@ Any normal AWS credential strategy works:
 Run the interactive setup:
 
 ```bash
-gitops-summary epic --setup
+gitops epic --setup
 ```
 
 This stores config in:
@@ -156,7 +156,7 @@ The tool also ensures relevant entries are in `.gitignore`.
 ## 1) Model selection
 
 ```bash
-gitops-summary model
+gitops model
 ```
 
 What happens:
@@ -171,7 +171,7 @@ All subsequent Bedrock calls (commit summaries, weekly reports, diagrams, epic u
 ## 2) Commit workflow
 
 ```bash
-gitops-summary commit
+gitops commit
 ```
 
 What happens:
@@ -187,28 +187,59 @@ What happens:
 ### Commit-based weekly summary
 
 ```bash
-gitops-summary weekly
+gitops weekly
 ```
 
 ### Custom date window
 
 ```bash
-gitops-summary weekly --start-date 2026-01-01 --days 7
+gitops weekly --start-date 2026-01-01 --days 7
 ```
+
+### Freeform datetime range with paragraph control
+
+```bash
+gitops weekly --since 2026-06-01 --until 2026-06-07 --paragraphs 2
+gitops weekly --since 2026-06-10T09:00 --paragraphs 4
+```
+
+`--since`/`--until` accept `YYYY-MM-DD` or `YYYY-MM-DDTHH:MM`. If `--until` is omitted, defaults to now. `--paragraphs` (1-5, default 3) controls summary length.
 
 ### Issue-based weekly summary (requires epic setup)
 
 ```bash
-gitops-summary weekly --issues
+gitops weekly --issues
 ```
+
+## 3.5) Scrum standup workflow
+
+```bash
+gitops scrum
+gitops scrum --frequency 5
+```
+
+`--frequency` (1-7, default 3) sets how many times per week you scrum. The lookback window adjusts automatically (7 / frequency days). Generates a DONE / IN PROGRESS / BLOCKERS update from your commits, with an option to edit and regenerate.
+
+## 3.6) Model benchmark workflow
+
+```bash
+gitops benchmark
+gitops benchmark --tier exhaustive --repos ../other_repo . --workers 6
+gitops benchmark --leaderboard
+gitops benchmark --auto-select
+```
+
+Evaluates Bedrock models for commit message quality by replaying real diffs through multiple models. Records results and recommends the best model by composite score (quality × 0.6 + cost efficiency × 0.3 + speed × 0.1). Tiers: minimal (3 models), quick (6), standard (10), thorough (16), exhaustive (21).
+
+The package ships with pre-computed benchmark data so model selection works out of the box without running your own evaluation.
 
 ## 4) Epic tracking workflow
 
 ```bash
-gitops-summary epic --status
-gitops-summary epic --update
-gitops-summary epic --map
-gitops-summary epic --labels
+gitops epic --status
+gitops epic --update
+gitops epic --map
+gitops epic --labels
 ```
 
 `--update` is human-in-the-loop:
@@ -230,7 +261,7 @@ The `diagrams` command analyzes a repository, asks Bedrock to generate PlantUML,
 Recommended verification before first use:
 
 ```bash
-gitops-summary diagrams --list-types
+gitops diagrams --list-types
 JAVA_TOOL_OPTIONS="-Djava.awt.headless=true" java -jar /tmp/plantuml.jar -version
 ```
 
@@ -244,7 +275,7 @@ The CLI already sets the headless Java flag during rendering, so you do not need
 
 ### What the command does
 
-When you run `gitops-summary diagrams`, it:
+When you run `gitops diagrams`, it:
 
 1. Scans the repository for context such as README, file tree, config files, and architecture signals
 2. Chooses the requested diagram types
@@ -256,7 +287,7 @@ When you run `gitops-summary diagrams`, it:
 ### Default behavior
 
 ```bash
-gitops-summary diagrams
+gitops diagrams
 ```
 
 By default this writes output to:
@@ -272,37 +303,37 @@ If that directory does not exist, the command creates it.
 Generate the default diagram set:
 
 ```bash
-gitops-summary diagrams
+gitops diagrams
 ```
 
 Generate only selected types:
 
 ```bash
-gitops-summary diagrams --type architecture --type data_model --type sequence
+gitops diagrams --type architecture --type data_model --type sequence
 ```
 
 Generate into a custom location:
 
 ```bash
-gitops-summary diagrams --output /tmp/diagrams
+gitops diagrams --output /tmp/diagrams
 ```
 
 Analyze a different repository:
 
 ```bash
-gitops-summary diagrams --repo /path/to/other/repo --output /tmp/diagrams
+gitops diagrams --repo /path/to/other/repo --output /tmp/diagrams
 ```
 
 Render existing `.puml` files without calling Bedrock:
 
 ```bash
-gitops-summary diagrams --render-only --format svg
+gitops diagrams --render-only --format svg
 ```
 
 Show supported diagram types:
 
 ```bash
-gitops-summary diagrams --list-types
+gitops diagrams --list-types
 ```
 
 ### Supported diagram types
@@ -365,14 +396,16 @@ If `boto3` is missing in your current interpreter, run the CLI from the project 
 ## CLI reference
 
 ```bash
-gitops-summary --manual
-gitops-summary --generate-md
+gitops --manual
+gitops --generate-md
 
-gitops-summary model
-gitops-summary commit
-gitops-summary weekly [--issues] [--start-date YYYY-MM-DD --days N]
-gitops-summary epic [--setup|--status|--update|--map|--labels]
-gitops-summary diagrams [--repo PATH] [--output DIR] [--type NAME ...] [--format png|svg|txt] [--model MODEL_ID] [--render-only] [--list-types]
+gitops model
+gitops commit
+gitops weekly [--issues] [--start-date YYYY-MM-DD --days N] [--since DATETIME --until DATETIME] [--paragraphs 1-5]
+gitops scrum [--frequency 1-7]
+gitops benchmark [--tier minimal|quick|standard|thorough|exhaustive] [--repos PATH ...] [--commits N] [--workers N] [--leaderboard] [--auto-select]
+gitops epic [--setup|--status|--update|--map|--labels]
+gitops diagrams [--repo PATH] [--output DIR] [--type NAME ...] [--format png|svg|txt] [--model MODEL_ID] [--render-only] [--list-types]
 ```
 
 ---
@@ -383,14 +416,18 @@ gitops-summary diagrams [--repo PATH] [--output DIR] [--type NAME ...] [--format
 .
 ├── pyproject.toml
 ├── README.md
+├── docs/
+│   └── benchmark_results.md
 └── src/
     └── gitops_summary/
         ├── __init__.py
         ├── __main__.py
         ├── bedrock.py
+        ├── benchmark.py
         ├── cli.py
         ├── commit.py
         ├── config.py
+        ├── default_scores.json
         ├── docs.py
         ├── engine.py
         ├── epic.py
@@ -414,7 +451,7 @@ gitops-summary diagrams [--repo PATH] [--output DIR] [--type NAME ...] [--format
 - **Bedrock invocation errors**
   - Verify AWS credentials and Bedrock model access permissions
 - **GitLab auth/setup failures**
-  - Re-run `gitops-summary epic --setup` and confirm token scopes
+  - Re-run `gitops epic --setup` and confirm token scopes
 - **No changes detected in commit mode**
   - Stage or modify files first, then rerun
 - **PlantUML not found**

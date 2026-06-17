@@ -681,24 +681,40 @@ def build_daily_summary_prompt(day_name: str, diff: str) -> str:
     )
 
 
-def build_weekly_rollup_prompt(daily_summaries: dict[str, str]) -> str:
+def build_weekly_rollup_prompt(daily_summaries: dict[str, str], paragraphs: int = 3) -> str:
     """Build prompt for rolling up daily summaries into weekly summary."""
     summaries_text = "\n\n".join(f"{day}:\n{summary}" for day, summary in daily_summaries.items() if summary)
     return (
         "You are summarizing a week of software development work.\n"
-        "Create a summary with:\n"
-        "1) A 4-sentence plain-English summary of the week's accomplishments.\n"
-        "2) A bulleted list of key changes, grouped by theme or feature.\n\n"
+        f"Create a summary with exactly {paragraphs} paragraph(s).\n"
+        "Each paragraph should cover a coherent theme or feature area.\n\n"
         "CRITICAL RULES:\n"
         "- Be concrete and specific about what was built or changed.\n"
         "- Reference ACTUAL function names, feature names, and module names from the daily summaries.\n"
         "- NEVER use generic phrases like 'various improvements', 'code enhancements', or 'updates made'.\n"
-        "- Each bullet point should cite a SPECIFIC change (e.g., 'Added retry logic to API client', not 'Improved API handling').\n"
+        "- Each paragraph should cite SPECIFIC changes (e.g., 'Added retry logic to API client', not 'Improved API handling').\n"
         "- NEVER mention: README.md, .venv/.gitlab_epic_config.json.\n"
         "- Focus on outcomes and features, not process.\n"
         "- Write in a natural, human tone that sounds like an engineer talking to teammates.\n"
         "- Avoid grand or abstract wording such as 'profound', 'revolutionary', 'holistic', 'comprehensive modernization', or similar hype language.\n"
         "- Keep sentences short and straightforward.\n"
-        "- Output plain text, no markdown headers.\n\n"
+        "- Output plain text, no markdown headers, no bullet points.\n\n"
         f"Daily summaries:\n{summaries_text}\n"
+    )
+
+
+def build_scrum_prompt(diff: str, days_covered: int) -> str:
+    """Build prompt for a scrum/standup update."""
+    return (
+        f"Generate a concise standup update covering the last {days_covered} day(s) of work.\n"
+        "Format with three sections:\n"
+        "- DONE: What was completed (2-4 bullet points)\n"
+        "- IN PROGRESS: What's actively being worked on (1-3 bullet points)\n"
+        "- BLOCKERS: Any blockers or issues (or 'None' if clear)\n\n"
+        "RULES:\n"
+        "- Be specific: name functions, features, modules from the diff\n"
+        "- Keep each bullet to one sentence\n"
+        "- No filler, no corporate speak\n"
+        "- Plain text, no markdown\n\n"
+        f"Diff from last {days_covered} day(s):\n{diff}\n"
     )
