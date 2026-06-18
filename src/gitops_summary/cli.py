@@ -11,7 +11,7 @@ from .diagrams import diagrams_workflow
 from .docs import generate_readme, print_manual
 from .epic import epic_workflow
 from .model import model_workflow
-from .weekly import resolve_weekly_date_range, weekly_issues_workflow, weekly_workflow, scrum_workflow
+from .weekly import resolve_weekly_date_range, scrum_workflow, weekly_issues_workflow, weekly_workflow
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -45,6 +45,11 @@ Examples:
         """,
     )
 
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__import__('gitops_summary').__version__}",
+    )
     parser.add_argument(
         "--manual",
         action="store_true",
@@ -236,8 +241,10 @@ def main() -> int:
     if args.mode == "weekly":
         try:
             start_date, end_date = resolve_weekly_date_range(
-                args.start_date, args.days,
-                since=args.since, until=args.until,
+                args.start_date,
+                args.days,
+                since=args.since,
+                until=args.until,
             )
         except ValueError as exc:
             print(f"[weekly] Error: {exc}")
@@ -258,6 +265,7 @@ def main() -> int:
         if args.auto_select:
             from .benchmark import get_best_model, load_scores
             from .model import save_model_id
+
             best = get_best_model(load_scores())
             if best:
                 save_model_id(best)

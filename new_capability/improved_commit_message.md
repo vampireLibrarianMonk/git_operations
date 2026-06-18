@@ -12,13 +12,13 @@ calls, replacing the previously hard-coded default.
 
 ## Modified Files
 
-| File | Change Summary |
-|------|---------------|
+| File                            | Change Summary                                                                                                   |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `src/gitops_summary/bedrock.py` | Replace static `MODEL_ID` import with `load_model_id()` so the runtime model respects the user's saved selection |
-| `src/gitops_summary/cli.py` | Register the `model` subcommand, import and route to `model_workflow` |
+| `src/gitops_summary/cli.py`     | Register the `model` subcommand, import and route to `model_workflow`                                            |
 
 ## New Files
 
-| File | Change Summary |
-|------|---------------|
+| File                          | Change Summary                                                                                                      |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `src/gitops_summary/model.py` | Model catalog, `load_model_id`/`save_model_id` persistence helpers, and interactive family→model selection workflow |

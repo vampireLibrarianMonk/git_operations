@@ -72,7 +72,9 @@ DIAGRAM_TYPE_SPECS: dict[str, DiagramTypeSpec] = {
         name="search_ask",
         description="Flow for search and question-answer style user interactions.",
         instruction=(
-            "Generate a PlantUML activity or flow diagram for the repo's search-and-answer workflow. Show retrieval, ranking, context assembly, model calls, and response rendering when those behaviors are supported by the repo context."
+            "Generate a PlantUML activity or flow diagram for the repo's search-and-answer workflow."
+            " Show retrieval, ranking, context assembly, model calls, and response rendering"
+            " when those behaviors are supported by the repo context."
         ),
         default=True,
         optional_signals=("search", "bedrock", "ai", "api", "database"),
@@ -82,7 +84,9 @@ DIAGRAM_TYPE_SPECS: dict[str, DiagramTypeSpec] = {
         name="sequence",
         description="Interaction sequence for a primary user or system workflow.",
         instruction=(
-            "Generate a PlantUML sequence diagram for the repository's main workflow. Show actors and participating systems in order, using only interactions that can be reasonably inferred from the codebase context."
+            "Generate a PlantUML sequence diagram for the repository's main workflow."
+            " Show actors and participating systems in order, using only interactions"
+            " that can be reasonably inferred from the codebase context."
         ),
         optional_signals=("api", "cli", "frontend", "worker", "bedrock"),
         insufficient_context_message="The repo shows only limited end-to-end workflow evidence, so sequence coverage may be incomplete.",
@@ -91,7 +95,9 @@ DIAGRAM_TYPE_SPECS: dict[str, DiagramTypeSpec] = {
         name="component",
         description="Module/component-level structure of the application itself.",
         instruction=(
-            "Generate a PlantUML component diagram showing major modules, packages, or services inside the application. Focus on code-level structure and dependencies between major components."
+            "Generate a PlantUML component diagram showing major modules, packages, or services"
+            " inside the application. Focus on code-level structure and dependencies"
+            " between major components."
         ),
         optional_signals=("python", "api", "cli", "worker", "frontend"),
         insufficient_context_message="Only partial application-structure evidence was available, so component grouping may be broad.",
@@ -100,7 +106,9 @@ DIAGRAM_TYPE_SPECS: dict[str, DiagramTypeSpec] = {
         name="deployment",
         description="Deployment/runtime topology across hosts, services, and external dependencies.",
         instruction=(
-            "Generate a PlantUML deployment-style diagram for the runtime environment. Show hosts, services, infrastructure boundaries, and external providers only where the repo clearly indicates deployment topology."
+            "Generate a PlantUML deployment-style diagram for the runtime environment."
+            " Show hosts, services, infrastructure boundaries, and external providers"
+            " only where the repo clearly indicates deployment topology."
         ),
         required_signals=("docker",),
         optional_signals=("kubernetes", "cloud", "terraform", "frontend", "api", "database"),
@@ -110,7 +118,9 @@ DIAGRAM_TYPE_SPECS: dict[str, DiagramTypeSpec] = {
         name="class",
         description="Class-oriented structural view for object-heavy repositories.",
         instruction=(
-            "Generate a PlantUML class diagram only if the repository context clearly shows meaningful classes and relationships. Prefer a smaller trustworthy diagram over a speculative one."
+            "Generate a PlantUML class diagram only if the repository context clearly shows"
+            " meaningful classes and relationships. Prefer a smaller trustworthy diagram"
+            " over a speculative one."
         ),
         required_signals=("classes",),
         optional_signals=("python", "models", "orm"),
@@ -120,7 +130,9 @@ DIAGRAM_TYPE_SPECS: dict[str, DiagramTypeSpec] = {
         name="state",
         description="State machine or lifecycle transitions for domain objects or workflows.",
         instruction=(
-            "Generate a PlantUML state diagram only if the repository context shows meaningful statuses, transitions, or lifecycle states. Keep the diagram scoped to one coherent workflow."
+            "Generate a PlantUML state diagram only if the repository context shows meaningful"
+            " statuses, transitions, or lifecycle states. Keep the diagram scoped"
+            " to one coherent workflow."
         ),
         required_signals=("stateful",),
         optional_signals=("workflow", "api", "database"),
@@ -130,7 +142,9 @@ DIAGRAM_TYPE_SPECS: dict[str, DiagramTypeSpec] = {
         name="use_case",
         description="User-facing capabilities and actor interactions.",
         instruction=(
-            "Generate a PlantUML use-case diagram showing the main actors and user-visible capabilities supported by the repository. Use only capabilities supported by the README, CLI interface, or code organization."
+            "Generate a PlantUML use-case diagram showing the main actors and user-visible"
+            " capabilities supported by the repository. Use only capabilities supported"
+            " by the README, CLI interface, or code organization."
         ),
         optional_signals=("cli", "api", "frontend", "readme"),
         insufficient_context_message="User-facing capabilities were only partially documented, so the use-case view may be incomplete.",
@@ -139,7 +153,9 @@ DIAGRAM_TYPE_SPECS: dict[str, DiagramTypeSpec] = {
         name="activity",
         description="Generic activity/flow diagram for a notable process in the codebase.",
         instruction=(
-            "Generate a PlantUML activity diagram for one meaningful process in the repository. Prefer a concrete workflow such as ingestion, summarization, synchronization, or reporting if evidence exists."
+            "Generate a PlantUML activity diagram for one meaningful process in the repository."
+            " Prefer a concrete workflow such as ingestion, summarization, synchronization,"
+            " or reporting if evidence exists."
         ),
         optional_signals=("workflow", "api", "worker", "cli"),
         insufficient_context_message="The repository did not expose one dominant process, so the activity diagram may be generalized.",

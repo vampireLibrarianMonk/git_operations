@@ -2,7 +2,7 @@
 
 __all__ = ["__version__", "main"]
 
-__version__ = "0.1.0"
+from ._version import __version__
 
 
 def main() -> int:

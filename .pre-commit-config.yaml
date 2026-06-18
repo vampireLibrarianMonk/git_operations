@@ -129,6 +129,7 @@ repos:
     rev: v1.5.0
     hooks:
       - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
 
   # flake8:
   # Python linter enforcing style and catching issues.
@@ -143,3 +144,20 @@ repos:
       - id: flake8
         entry: pflake8
         additional_dependencies: [pyproject-flake8]
+
+  # semgrep:
+  # Lightweight static analysis with taint tracking and security rules.
+  # Covers gaps that bandit/flake8 miss:
+  # - Data-flow-aware injection detection (subprocess, SQL, shell)
+  # - AWS SDK misuse (missing encryption, insecure configs)
+  # - Python correctness (mutable defaults, identity vs equality)
+  # - Deserialization and SSRF patterns
+  - repo: https://github.com/semgrep/semgrep
+    rev: "v1.78.0"
+    hooks:
+      - id: semgrep
+        args:
+          - --config=p/python
+          - --config=p/security-audit
+          - --error
+          - --skip-unknown-extensions

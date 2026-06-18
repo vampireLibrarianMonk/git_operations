@@ -155,7 +155,10 @@ Backend:
 
         self.assertEqual(
             message,
-            "Improve document sync flow\n\nThis change tightens ingestion validation and cleans up sync behavior.\n\n- Add retry handling in sync worker\n- Update API validation for ingest requests",
+            "Improve document sync flow\n\n"
+            "This change tightens ingestion validation and cleans up sync behavior.\n\n"
+            "- Add retry handling in sync worker\n"
+            "- Update API validation for ingest requests",
         )
 
     def test_coerce_commit_message_uses_fallback_subject_when_no_subject_present(self) -> None:
@@ -173,7 +176,10 @@ Improves validation around uploads and sync retries.
 
         self.assertEqual(
             message,
-            "Update 2 files in backend\n\nImproves validation around uploads and sync retries.\n\n- Add retry handling in sync worker\n- Update API validation for ingest requests",
+            "Update 2 files in backend\n\n"
+            "Improves validation around uploads and sync retries.\n\n"
+            "- Add retry handling in sync worker\n"
+            "- Update API validation for ingest requests",
         )
 
     def test_sanitize_commit_response_drops_next_steps_section(self) -> None:
@@ -192,7 +198,9 @@ Next steps:
 
         self.assertEqual(
             sanitized,
-            "Implement Phase 1 MVP with local ingestion and in-memory search\n\nThis commit delivers the initial MVP implementation.\n\n- Define Pydantic models for request and response schemas",
+            "Implement Phase 1 MVP with local ingestion and in-memory search\n\n"
+            "This commit delivers the initial MVP implementation.\n\n"
+            "- Define Pydantic models for request and response schemas",
         )
 
 

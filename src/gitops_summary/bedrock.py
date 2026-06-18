@@ -43,7 +43,7 @@ def invoke_bedrock_text(
         if exc.name == "boto3":
             raise RuntimeError(
                 "boto3 is required for Bedrock-backed generation but is not installed in the current Python environment. "
-                "Install dependencies with 'pip install -e .' or run the CLI from the project's virtualenv."
+                "Install dependencies with 'pip install -e .' or run the CLI from the project's virtualenv.",
             ) from exc
         raise
 
@@ -60,10 +60,7 @@ def invoke_bedrock_text(
             body["system"] = [{"text": system_prompt}]
         response = client.invoke_model(modelId=resolved_model, body=json.dumps(body))
         payload = json.loads(response["body"].read())
-        return "".join(
-            part.get("text", "")
-            for part in payload.get("output", {}).get("message", {}).get("content", [])
-        )
+        return "".join(part.get("text", "") for part in payload.get("output", {}).get("message", {}).get("content", []))
 
     # Meta, Mistral, DeepSeek — use the Converse API
     if any(x in resolved_model for x in ("meta.", "mistral.", "deepseek.")):
@@ -76,10 +73,7 @@ def invoke_bedrock_text(
         if system_prompt:
             kwargs["system"] = [{"text": system_prompt}]
         response = client.converse(**kwargs)
-        return "".join(
-            block.get("text", "")
-            for block in response.get("output", {}).get("message", {}).get("content", [])
-        )
+        return "".join(block.get("text", "") for block in response.get("output", {}).get("message", {}).get("content", []))
 
     # Anthropic format (default)
     body = {

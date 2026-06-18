@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gitops"
-version = "1.0.0"
+dynamic = ["version"]
 description = "AI-assisted git summaries and GitLab epic operations"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -15,6 +15,9 @@ dependencies = [
 
 [project.scripts]
 gitops = "gitops_summary.cli:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "gitops_summary._version.__version__"}
 
 [tool.setuptools]
 package-dir = {"" = "src"}

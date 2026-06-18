@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import os
-import subprocess
+import subprocess  # nosec B404
 from pathlib import Path
 from typing import Any
-
 
 IGNORED_DIR_NAMES = {
     ".git",
@@ -114,7 +113,7 @@ def _collect_config_snippets(root: Path, char_limit: int = 2200) -> dict[str, st
 
 def _read_git_log(root: Path, max_lines: int = 20) -> str:
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 B607
             ["git", "log", f"--max-count={max_lines}", "--oneline"],
             cwd=root,
             capture_output=True,

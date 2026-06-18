@@ -5,9 +5,8 @@ from __future__ import annotations
 import os
 import platform
 import shutil
-import subprocess
+import subprocess  # nosec B404
 from pathlib import Path
-
 
 SUPPORTED_OUTPUT_FORMATS = ("png", "svg", "txt")
 PLANTUML_VERSION = "1.2024.8"
@@ -15,7 +14,7 @@ PLANTUML_JAR_URL = f"https://github.com/plantuml/plantuml/releases/download/v{PL
 JAR_SEARCH_PATHS = (
     "/usr/local/lib/plantuml.jar",
     "/opt/plantuml.jar",
-    "/tmp/plantuml.jar",
+    "/tmp/plantuml.jar",  # nosec B108
 )
 
 
@@ -58,7 +57,7 @@ def render_diagram(input_path: str | Path, output_format: str = "png", output_di
     command.append(str(source_path.resolve()))
     env = _build_headless_env()
 
-    result = subprocess.run(command, capture_output=True, text=True, env=env, check=False)
+    result = subprocess.run(command, capture_output=True, text=True, env=env, check=False)  # nosec B603
     if result.returncode != 0:
         stderr = result.stderr.strip() or result.stdout.strip() or "unknown PlantUML error"
         raise RuntimeError(f"PlantUML rendering failed for {source_path.name}: {stderr}")

@@ -32,7 +32,7 @@ VALID_STATUS_LABELS = [
     "status::won't fix",
 ]
 
-README_CONTENT = """# Git Summary Tool
+README_CONTENT = r"""# Git Summary Tool
 
 A developer productivity tool that uses AWS Bedrock (Claude) to generate intelligent commit messages, weekly summaries, and manage GitLab epic tracking.
 
@@ -199,7 +199,7 @@ gitops --help         # Show help
 ```
 """
 
-MANUAL_TEXT = """
+MANUAL_TEXT = r"""
 ================================================================================
                         GIT SUMMARY - USER MANUAL
 ================================================================================

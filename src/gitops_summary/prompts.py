@@ -5,7 +5,6 @@ from typing import Dict, List, Optional
 
 from .config import VALID_STATUS_LABELS
 
-
 COMMIT_SYSTEM_PROMPT = """You write git commit messages for software repositories.
 
 Return only a valid commit message.
@@ -119,7 +118,7 @@ def _parse_status_entries(status: str) -> List[Dict[str, str]]:
                     "action": action,
                     "path": old_path,
                     "new_path": new_path,
-                }
+                },
             )
             continue
 
@@ -128,7 +127,7 @@ def _parse_status_entries(status: str) -> List[Dict[str, str]]:
                 "action": action,
                 "path": path_text,
                 "new_path": "",
-            }
+            },
         )
 
     return entries
@@ -254,7 +253,8 @@ def build_prompt(
             "- This is the first commit in the repository.\n"
             "- Write the summary in a natural, human way that reflects initial setup, scaffolding, or first implementation work.\n"
             "- Favor phrasing like 'Initial project scaffolding for ...', 'Initial implementation of ...', or 'Bootstrap ...'.\n"
-            "- Avoid describing the work like a routine follow-up update with words such as 'updated' or 'modified' unless the diff clearly requires that wording.\n"
+            "- Avoid describing the work like a routine follow-up update with words such as"
+            " 'updated' or 'modified' unless the diff clearly requires that wording.\n"
         )
 
     # Build a manifest of all changed files so the model has an explicit checklist.
@@ -274,10 +274,7 @@ def build_prompt(
     files_manifest_section = ""
     if changed_files:
         manifest_list = "\n".join(f"  - {f}" for f in changed_files)
-        files_manifest_section = (
-            f"\n\nALL CHANGED FILES ({len(changed_files)} total — each must be addressed in the commit body):\n"
-            f"{manifest_list}\n"
-        )
+        files_manifest_section = f"\n\nALL CHANGED FILES ({len(changed_files)} total — each must be addressed in the commit body):\n" f"{manifest_list}\n"
 
     if file_count > 30:
         format_instructions = (

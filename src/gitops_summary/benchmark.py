@@ -107,10 +107,7 @@ def _invoke_model(model: dict, prompt: str, system_prompt: str | None, max_token
             body["system"] = [{"text": system_prompt}]
         response = client.invoke_model(modelId=model["id"], body=json.dumps(body))
         payload = json.loads(response["body"].read())
-        return "".join(
-            part.get("text", "")
-            for part in payload.get("output", {}).get("message", {}).get("content", [])
-        )
+        return "".join(part.get("text", "") for part in payload.get("output", {}).get("message", {}).get("content", []))
 
     if provider in ("mistral", "meta", "deepseek"):
         # Converse API format (works for Mistral, Meta, DeepSeek on Bedrock)
@@ -123,10 +120,7 @@ def _invoke_model(model: dict, prompt: str, system_prompt: str | None, max_token
         if system_prompt:
             kwargs["system"] = [{"text": system_prompt}]
         response = client.converse(**kwargs)
-        return "".join(
-            block.get("text", "")
-            for block in response.get("output", {}).get("message", {}).get("content", [])
-        )
+        return "".join(block.get("text", "") for block in response.get("output", {}).get("message", {}).get("content", []))
 
     if provider == "ai21":
         body = {
@@ -166,40 +160,77 @@ def _invoke_model(model: dict, prompt: str, system_prompt: str | None, max_token
     payload = json.loads(response["body"].read())
     return "".join(part.get("text", "") for part in payload.get("content", []))
 
+
 # Models to benchmark by tier
 _TIER_MINIMAL = [
     {"id": "amazon.nova-micro-v1:0", "name": "Nova Micro", "provider": "nova", "cost_per_1k_input": 0.000035, "cost_per_1k_output": 0.00014},
     {"id": "amazon.nova-lite-v1:0", "name": "Nova Lite", "provider": "nova", "cost_per_1k_input": 0.00006, "cost_per_1k_output": 0.00024},
-    {"id": "anthropic.claude-3-haiku-20240307-v1:0", "name": "Claude 3 Haiku", "provider": "anthropic", "cost_per_1k_input": 0.00025, "cost_per_1k_output": 0.00125},
+    {
+        "id": "anthropic.claude-3-haiku-20240307-v1:0",
+        "name": "Claude 3 Haiku",
+        "provider": "anthropic",
+        "cost_per_1k_input": 0.00025,
+        "cost_per_1k_output": 0.00125,
+    },
 ]
 
 _TIER_QUICK = _TIER_MINIMAL + [
     {"id": "mistral.ministral-3-3b-instruct", "name": "Ministral 3B", "provider": "mistral", "cost_per_1k_input": 0.00004, "cost_per_1k_output": 0.00004},
     {"id": "mistral.ministral-3-8b-instruct", "name": "Ministral 8B", "provider": "mistral", "cost_per_1k_input": 0.0001, "cost_per_1k_output": 0.0001},
-    {"id": "us.meta.llama4-scout-17b-instruct-v1:0", "name": "Llama 4 Scout 17B", "provider": "meta", "cost_per_1k_input": 0.00017, "cost_per_1k_output": 0.00017},
+    {
+        "id": "us.meta.llama4-scout-17b-instruct-v1:0",
+        "name": "Llama 4 Scout 17B",
+        "provider": "meta",
+        "cost_per_1k_input": 0.00017,
+        "cost_per_1k_output": 0.00017,
+    },
 ]
 
 _TIER_STANDARD = _TIER_QUICK + [
-    {"id": "us.anthropic.claude-haiku-4-5-20251001-v1:0", "name": "Claude Haiku 4.5", "provider": "anthropic", "cost_per_1k_input": 0.001, "cost_per_1k_output": 0.005},
+    {
+        "id": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+        "name": "Claude Haiku 4.5",
+        "provider": "anthropic",
+        "cost_per_1k_input": 0.001,
+        "cost_per_1k_output": 0.005,
+    },
     {"id": "amazon.nova-pro-v1:0", "name": "Nova Pro", "provider": "nova", "cost_per_1k_input": 0.0008, "cost_per_1k_output": 0.0032},
     {"id": "mistral.ministral-3-14b-instruct", "name": "Ministral 14B", "provider": "mistral", "cost_per_1k_input": 0.0002, "cost_per_1k_output": 0.0002},
-    {"id": "us.meta.llama4-maverick-17b-instruct-v1:0", "name": "Llama 4 Maverick 17B", "provider": "meta", "cost_per_1k_input": 0.00017, "cost_per_1k_output": 0.00017},
+    {
+        "id": "us.meta.llama4-maverick-17b-instruct-v1:0",
+        "name": "Llama 4 Maverick 17B",
+        "provider": "meta",
+        "cost_per_1k_input": 0.00017,
+        "cost_per_1k_output": 0.00017,
+    },
 ]
 
 _TIER_THOROUGH = _TIER_STANDARD + [
-    {"id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0", "name": "Claude Sonnet 4.5", "provider": "anthropic", "cost_per_1k_input": 0.003, "cost_per_1k_output": 0.015},
+    {
+        "id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "name": "Claude Sonnet 4.5",
+        "provider": "anthropic",
+        "cost_per_1k_input": 0.003,
+        "cost_per_1k_output": 0.015,
+    },
     {"id": "us.amazon.nova-2-lite-v1:0", "name": "Nova 2 Lite", "provider": "nova", "cost_per_1k_input": 0.00006, "cost_per_1k_output": 0.00024},
-    {"id": "mistral.devstral-2-123b", "name": "Devstral 2 123B", "provider": "mistral", "cost_per_1k_input": 0.0005, "cost_per_1k_output": 0.002},
     {"id": "us.meta.llama3-3-70b-instruct-v1:0", "name": "Llama 3.3 70B", "provider": "meta", "cost_per_1k_input": 0.00072, "cost_per_1k_output": 0.00072},
     {"id": "deepseek.v3.2", "name": "DeepSeek V3.2", "provider": "deepseek", "cost_per_1k_input": 0.0005, "cost_per_1k_output": 0.002},
+    {"id": "mistral.magistral-small-2509", "name": "Magistral Small", "provider": "mistral", "cost_per_1k_input": 0.0005, "cost_per_1k_output": 0.002},
 ]
 
 _TIER_EXHAUSTIVE = _TIER_THOROUGH + [
     {"id": "us.anthropic.claude-sonnet-4-6", "name": "Claude Sonnet 4.6", "provider": "anthropic", "cost_per_1k_input": 0.003, "cost_per_1k_output": 0.015},
-    {"id": "us.anthropic.claude-opus-4-1-20250805-v1:0", "name": "Claude Opus 4.1", "provider": "anthropic", "cost_per_1k_input": 0.015, "cost_per_1k_output": 0.075},
+    {
+        "id": "us.anthropic.claude-opus-4-1-20250805-v1:0",
+        "name": "Claude Opus 4.1",
+        "provider": "anthropic",
+        "cost_per_1k_input": 0.015,
+        "cost_per_1k_output": 0.075,
+    },
     {"id": "mistral.mistral-large-3-675b-instruct", "name": "Mistral Large 3", "provider": "mistral", "cost_per_1k_input": 0.002, "cost_per_1k_output": 0.006},
-    {"id": "mistral.magistral-small-2509", "name": "Magistral Small", "provider": "mistral", "cost_per_1k_input": 0.0005, "cost_per_1k_output": 0.002},
     {"id": "us.deepseek.r1-v1:0", "name": "DeepSeek R1", "provider": "deepseek", "cost_per_1k_input": 0.00135, "cost_per_1k_output": 0.00548},
+    {"id": "mistral.devstral-2-123b", "name": "Devstral 2 123B", "provider": "mistral", "cost_per_1k_input": 0.0005, "cost_per_1k_output": 0.002},
 ]
 
 BENCHMARK_TIERS = {
@@ -232,14 +263,18 @@ def _get_diff_for_commit(repo_path: str, commit_hash: str) -> tuple[str, str, Li
     """Extract diff, status, and new files for a commit."""
     result = subprocess.run(  # nosec
         ["git", "-C", repo_path, "diff", f"{commit_hash}^..{commit_hash}"],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     diff = result.stdout or ""
 
     # Get status
     status_result = subprocess.run(  # nosec
         ["git", "-C", repo_path, "diff", "--name-status", f"{commit_hash}^..{commit_hash}"],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     status = status_result.stdout or ""
 
@@ -253,59 +288,177 @@ def _estimate_cost(model: dict, input_chars: int, output_chars: int) -> float:
     """Rough cost estimate based on char-to-token ratio (~4 chars per token)."""
     input_tokens = input_chars / 4
     output_tokens = output_chars / 4
-    return (input_tokens / 1000 * model["cost_per_1k_input"] +
-            output_tokens / 1000 * model["cost_per_1k_output"])
+    return input_tokens / 1000 * model["cost_per_1k_input"] + output_tokens / 1000 * model["cost_per_1k_output"]
 
 
 def _score_message(message: str) -> dict:
     """Score a commit message on structural and content quality.
 
     Returns format_valid (bool) and quality_score (0.0-1.0).
-    quality_score penalizes:
-      - Generic/vague subjects
-      - Body that's just a file list with no description
-      - Missing body entirely
+    Evaluates: format, specificity, naturalness, and absence of bot-speak.
     """
     lines = message.strip().splitlines()
     if not lines:
         return {"format_valid": False, "quality_score": 0.0}
 
     subject = lines[0]
-    has_blank_after_subject = len(lines) == 1 or (len(lines) > 1 and lines[1].strip() == "")
     subject_len = len(subject)
-    body_lines = [l for l in lines[2:] if l.strip()] if len(lines) > 2 else []
 
     valid = looks_like_commit_message(message)
     if not valid:
         return {"format_valid": False, "quality_score": 0.0}
 
-    # Start at 1.0, penalize quality issues
+    # Extract executive paragraph (lines between blank-after-subject and file sections)
+    exec_lines = []
+    file_section_started = False
+    for ln in lines[2:]:
+        stripped = ln.strip()
+        if stripped.startswith(("Modified:", "New:", "Deleted:")):
+            file_section_started = True
+            continue
+        if not file_section_started and stripped and not stripped.startswith(("-", "*", "•")):
+            exec_lines.append(stripped)
+    exec_para = " ".join(exec_lines).lower()
+    body_lines = [ln for ln in lines[2:] if ln.strip()] if len(lines) > 2 else []
+
     score = 1.0
 
+    # --- STRUCTURE ---
     # Penalize generic subjects
     generic_subjects = [
-        "update staged changes", "update files", "misc changes",
-        "code updates", "various updates", "changes",
+        "update staged changes",
+        "update files",
+        "misc changes",
+        "code updates",
+        "various updates",
+        "changes",
+        "updates",
     ]
     if subject.lower().strip() in generic_subjects:
         score -= 0.4
 
-    # Penalize subjects that are too short (under 15 chars = likely vague)
     if subject_len < 15:
-        score -= 0.2
-
-    # Penalize if body is ONLY file paths (no descriptive text)
-    if body_lines:
-        descriptive_lines = [l for l in body_lines if not l.strip().startswith(("- ", "Modified:", "New:", "Deleted:", "src/", "docs/", "./"))]
-        if not descriptive_lines:
-            score -= 0.3
-    else:
-        # No body at all — slight penalty
-        score -= 0.1
-
-    # Reward: subject under 72 chars
+        score -= 0.15
     if subject_len > 72:
         score -= 0.1
+
+    # No executive paragraph at all
+    if not exec_lines:
+        if body_lines:
+            descriptive = [ln for ln in body_lines if not ln.strip().startswith(("- ", "Modified:", "New:", "Deleted:", "src/", "docs/", "./"))]
+            if not descriptive:
+                score -= 0.3  # file list only
+        else:
+            score -= 0.2  # no body
+
+        return {"format_valid": True, "quality_score": max(0.0, min(1.0, score))}
+
+    # --- BOT-SPEAK PENALTY ---
+    bot_phrases = [
+        "this commit introduces",
+        "this commit adds",
+        "this commit updates",
+        "this commit implements",
+        "this commit includes",
+        "this commit represents",
+        "this pr ",
+        "this pull request",
+        "this change introduces",
+        "the following changes",
+        "here is a summary",
+        "the purpose of this commit",
+    ]
+    bot_hits = sum(1 for p in bot_phrases if p in exec_para)
+    score -= bot_hits * 0.1
+
+    # --- CORPORATE FILLER PENALTY ---
+    filler_phrases = [
+        "key improvements",
+        "key enhancements",
+        "several enhancements",
+        "several improvements",
+        "comprehensive update",
+        "comprehensive changes",
+        "significant improvements",
+        "various improvements",
+        "various enhancements",
+        "robust framework",
+        "streamlined",
+        "leveraging",
+        "synergy",
+        "paradigm",
+        "holistic",
+        "transformative",
+        "strategic initiative",
+        "cutting-edge",
+        "best practices",
+        "world-class",
+    ]
+    filler_hits = sum(1 for p in filler_phrases if p in exec_para)
+    score -= filler_hits * 0.08
+
+    # --- VAGUENESS PENALTY ---
+    vague_phrases = [
+        "code quality",
+        "code improvements",
+        "code enhancements",
+        "code updates",
+        "general improvements",
+        "minor improvements",
+        "updated logic",
+        "improved functionality",
+        "enhanced functionality",
+        "better handling",
+        "improved handling",
+        "various fixes",
+        "miscellaneous changes",
+    ]
+    vague_hits = sum(1 for p in vague_phrases if p in exec_para)
+    score -= vague_hits * 0.1
+
+    # --- SPECIFICITY REWARD ---
+    # Reward if the exec paragraph contains specific technical terms
+    # (function names, module paths, feature keywords)
+    specificity_signals = 0
+    # Contains something that looks like a function/class/module name
+    import re
+
+    if re.search(r'\b[a-z_]+_[a-z_]+\b', exec_para):  # snake_case identifiers
+        specificity_signals += 1
+    if re.search(r'\b[A-Z][a-z]+[A-Z]', " ".join(exec_lines)):  # CamelCase in original case
+        specificity_signals += 1
+    if re.search(r'\b(api|cli|url|json|yaml|sql|http|aws|bedrock)\b', exec_para):
+        specificity_signals += 1
+    # Contains a concrete action verb (not just "updated" or "improved")
+    concrete_verbs = [
+        "renamed",
+        "added",
+        "removed",
+        "fixed",
+        "replaced",
+        "migrated",
+        "split",
+        "merged",
+        "extracted",
+        "refactored",
+        "wired",
+        "connected",
+    ]
+    if any(v in exec_para for v in concrete_verbs):
+        specificity_signals += 1
+
+    if specificity_signals >= 3:
+        score += 0.1
+    elif specificity_signals == 0:
+        score -= 0.1
+
+    # --- NATURALNESS ---
+    # Penalize if every sentence starts the same way (repetitive structure)
+    sentences = [s.strip() for s in exec_para.replace(". ", ".\n").splitlines() if s.strip()]
+    if len(sentences) >= 3:
+        first_words = [s.split()[0] if s.split() else "" for s in sentences]
+        if len(set(first_words)) == 1:
+            score -= 0.1  # all sentences start with same word
 
     return {"format_valid": True, "quality_score": max(0.0, min(1.0, score))}
 
@@ -391,6 +544,7 @@ def get_best_model(scores: Optional[List[dict]] = None, diff_size: Optional[int]
 
     # Aggregate by model
     from collections import defaultdict
+
     stats = defaultdict(lambda: {"quality_sum": 0.0, "total": 0, "cost_sum": 0.0, "latency_sum": 0})
 
     for s in scores:
@@ -441,6 +595,7 @@ def print_leaderboard(scores: Optional[List[dict]] = None) -> None:
         return
 
     from collections import defaultdict
+
     stats = defaultdict(lambda: {"quality_sum": 0.0, "total": 0, "cost_sum": 0.0, "latency_sum": 0, "name": ""})
     for s in scores:
         mid = s["model_id"]
@@ -477,14 +632,18 @@ def benchmark_workflow(repos: Optional[List[str]] = None, commits_per_repo: int 
     for repo_path in repos:
         result = subprocess.run(  # nosec
             ["git", "-C", repo_path, "log", "--format=%H", f"-{commits_per_repo}"],
-            capture_output=True, text=True, check=False,
+            capture_output=True,
+            text=True,
+            check=False,
         )
         if result.returncode == 0 and result.stdout.strip():
             for h in result.stdout.strip().splitlines():
                 # Skip initial commits (no parent)
                 check = subprocess.run(  # nosec
                     ["git", "-C", repo_path, "rev-parse", f"{h}^"],
-                    capture_output=True, text=True, check=False,
+                    capture_output=True,
+                    text=True,
+                    check=False,
                 )
                 if check.returncode == 0:
                     test_cases.append((repo_path, h))
@@ -517,7 +676,11 @@ def benchmark_workflow(repos: Optional[List[str]] = None, commits_per_repo: int 
             if trial_result:
                 new_results.append(trial_result)
                 status = "✓" if trial_result.format_valid else "✗"
-                print(f"  [{completed}/{total_trials}] {status} {m['name']:<24} {trial_result.repo}/{ch[:8]}  {trial_result.latency_ms:>5}ms  ${trial_result.cost_estimate:.6f}  ({trial_result.diff_chars:,} chars)")
+                print(
+                    f"  [{completed}/{total_trials}] {status} {m['name']:<24} "
+                    f"{trial_result.repo}/{ch[:8]}  {trial_result.latency_ms:>5}ms  "
+                    f"${trial_result.cost_estimate:.6f}  ({trial_result.diff_chars:,} chars)",
+                )
 
     if new_results:
         all_scores = existing_scores + [asdict(r) for r in new_results]
@@ -539,11 +702,11 @@ def export_results_markdown(scores: Optional[List[dict]] = None) -> None:
 
     from collections import defaultdict
 
-    stats = defaultdict(lambda: {"valid": 0, "total": 0, "cost_sum": 0.0, "latency_sum": 0, "name": ""})
+    stats = defaultdict(lambda: {"quality_sum": 0.0, "total": 0, "cost_sum": 0.0, "latency_sum": 0, "name": ""})
     for s in scores:
         mid = s["model_id"]
         stats[mid]["total"] += 1
-        stats[mid]["valid"] += int(s["format_valid"])
+        stats[mid]["quality_sum"] += s.get("quality_score", 1.0 if s.get("format_valid") else 0.0)
         stats[mid]["cost_sum"] += s["cost_estimate"]
         stats[mid]["latency_sum"] += s["latency_ms"]
         stats[mid]["name"] = s.get("model_name", mid)
@@ -560,8 +723,8 @@ def export_results_markdown(scores: Optional[List[dict]] = None) -> None:
         "|-------|--------|---------|----------|-------------|",
     ]
 
-    for mid, v in sorted(stats.items(), key=lambda x: x[1]["valid"] / max(x[1]["total"], 1), reverse=True):
-        quality = v["valid"] / v["total"] * 100
+    for mid, v in sorted(stats.items(), key=lambda x: x[1]["quality_sum"] / max(x[1]["total"], 1), reverse=True):
+        quality = v["quality_sum"] / v["total"] * 100
         avg_cost = v["cost_sum"] / v["total"]
         avg_ms = v["latency_sum"] // v["total"]
         lines.append(f"| {v['name']} | {v['total']} | {quality:.0f}% | ${avg_cost:.6f} | {avg_ms}ms |")
@@ -580,7 +743,7 @@ def export_results_markdown(scores: Optional[List[dict]] = None) -> None:
     for s in scores:
         valid = "✓" if s["format_valid"] else "✗"
         lines.append(
-            f"| {s['model_name']} | {s['repo']} | `{s['commit_hash']}` | {s['diff_chars']:,} | {valid} | {s['latency_ms']}ms | ${s['cost_estimate']:.6f} |"
+            f"| {s['model_name']} | {s['repo']} | `{s['commit_hash']}` | {s['diff_chars']:,} | {valid} | {s['latency_ms']}ms | ${s['cost_estimate']:.6f} |",
         )
     lines.append("")
 

@@ -18,11 +18,10 @@ from .git_ops import (
 )
 from .prompts import (
     COMMIT_SYSTEM_PROMPT,
-    build_fallback_commit_message,
     build_commit_retry_prompt,
+    build_fallback_commit_message,
     build_prompt,
     clean_commit_response,
-    coerce_commit_message,
     looks_like_commit_message,
 )
 from .ui import prompt_yes_no
@@ -36,10 +35,10 @@ def _has_exec_summary_and_files(message: str) -> bool:
     # Subject, blank, then paragraph text before file sections
     if lines[1].strip() != "":
         return False
-    has_files = any(l.strip().startswith(("Modified:", "New:")) for l in lines)
+    has_files = any(ln.strip().startswith(("Modified:", "New:")) for ln in lines)
     # Executive paragraph: non-empty, non-bullet lines between blank and file section
-    for l in lines[2:]:
-        stripped = l.strip()
+    for ln in lines[2:]:
+        stripped = ln.strip()
         if stripped.startswith(("Modified:", "New:", "Deleted:")):
             break
         if stripped and not stripped.startswith(("-", "*", "•")):
@@ -159,10 +158,10 @@ def commit_workflow() -> int:
 
     # Count files detected vs files included in prompt
     total_diff_files = len(
-        [l for l in run_git_command(["diff", "--cached", "--name-only"]).splitlines() if l.strip()]
+        [ln for ln in run_git_command(["diff", "--cached", "--name-only"]).splitlines() if ln.strip()],
     )
     prompt_diff_files = len(
-        [l for l in staged_diff.splitlines() if l.startswith("diff --git ")]
+        [ln for ln in staged_diff.splitlines() if ln.startswith("diff --git ")],
     )
 
     # Get list of newly added files (to distinguish from modifications)
@@ -172,11 +171,13 @@ def commit_workflow() -> int:
     if len(staged_diff) > MAX_DIFF_CHARS:
         staged_diff = staged_diff[:MAX_DIFF_CHARS] + "\n... (diff truncated)"
         prompt_diff_files = len(
-            [l for l in staged_diff.splitlines() if l.startswith("diff --git ")]
+            [ln for ln in staged_diff.splitlines() if ln.startswith("diff --git ")],
         )
 
-    print(f"[git-commit-summary] Files staged: {total_diff_files} | Files in prompt: {prompt_diff_files}"
-          + (f" (diff truncated to {MAX_DIFF_CHARS // 1000}K chars)" if len(staged_diff) > MAX_DIFF_CHARS else ""))
+    print(
+        f"[git-commit-summary] Files staged: {total_diff_files} | Files in prompt: {prompt_diff_files}"
+        + (f" (diff truncated to {MAX_DIFF_CHARS // 1000}K chars)" if len(staged_diff) > MAX_DIFF_CHARS else ""),
+    )
     print("[git-commit-summary] Preparing prompt...")
     prompt = build_prompt(
         status,

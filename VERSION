@@ -1,0 +1,99 @@
+2.0.0
+
+# Semantic Versioning Changelog
+# See https://semver.org/
+
+## 2.0.0 (2026-06-16)
+### Breaking
+- Renamed CLI entry point from `gitops-summary` to `gitops`
+- Renamed project in pyproject.toml from `gitops-summary` to `gitops`
+
+### Added
+- Model benchmarking workflow (`gitops benchmark`) with tiered evaluation
+- Pre-computed default benchmark scores (default_scores.json)
+- Benchmark results documentation (docs/benchmark_results.md)
+- Scrum standup workflow (`gitops scrum`)
+
+### Changed
+- Updated all CLI subcommand descriptions and routing
+
+## 1.2.2 (2026-05-18)
+### Fixed
+- Updated README with `--no-build-isolation` pip install instructions and UNKNOWN 0.0.0 troubleshooting
+
+## 1.2.1 (2026-05-15)
+### Fixed
+- Commit range boundary handling in get_commits_for_day; added since/until parameters for precise date windows
+
+## 1.2.0 (2026-05-09)
+### Added
+- Interactive Bedrock model selection workflow (`gitops-summary model`)
+- Model catalog with family-based selection (Claude, Llama, Mistral, Amazon Nova)
+- Persistent model configuration saved to `.venv/.bedrock_model_config.json`
+
+### Changed
+- Replaced static MODEL_ID import with dynamic load_model_id()
+- Improved commit message formatting: added file count tracking and diff truncation visibility
+- Updated README with force-reinstall instructions
+
+### Fixed
+- Added .kiro to .gitignore
+
+## 1.1.5 (2026-04-09)
+### Fixed
+- Tuned commit prompt phrase lists: removed false-positive invalid phrases, added new boilerplate prefixes to strip
+- Added "Next steps:" section stripping from commit messages
+- Restricted invalid-phrase check to first line only in looks_like_commit_message()
+
+## 1.1.4 (2026-04-09)
+### Fixed
+- Added coerce_commit_message() to convert narrative AI output into commit format
+- Improved build_fallback_commit_subject() for deterministic fallback messages
+- Enhanced sanitize_commit_response() to skip irrelevant sections
+
+## 1.1.3 (2026-04-09)
+### Fixed
+- Added build_fallback_commit_message() for deterministic fallback when AI response is unusable
+- Added sanitize_commit_response() to strip review/planning boilerplate from AI output
+
+## 1.1.2 (2026-04-09)
+### Fixed
+- Added retry logic with stricter prompt when Bedrock output doesn't resemble a commit message
+- Added looks_like_commit_message() heuristic validation
+- Added COMMIT_SYSTEM_PROMPT to enforce commit format
+
+## 1.1.1 (2026-04-05)
+### Fixed
+- Handle initial commits: detect first commit and adjust prompt phrasing to avoid "updated" language
+
+## 1.1.0 (2026-04-09)
+### Added
+- PlantUML diagram generation and rendering from repository context (`gitops-summary diagrams`)
+- New modules: diagram_prompts.py, diagrams.py, plantuml.py, repo_context.py
+- Diagram types: architecture, containers, data_model, ingestion, sequence, component, deployment, class, state, use_case, activity
+- Feasibility assessment (normal / best-effort / skipped) based on repo evidence
+- PlantUML setup instructions for Ubuntu, Amazon Linux 2, and Windows
+- invoke_bedrock_text() for custom prompt invocations
+- sanitize_plantuml_response() for extracting PlantUML from model output
+
+## 1.0.2 (2026-03-29)
+### Fixed
+- Updated README with instructions for installing directly from GitHub using pip VCS URL format
+
+## 1.0.1 (2026-03-26)
+### Changed
+- Added pre-commit configuration with hooks for Black, isort, Flake8, bandit, codespell, detect-secrets, and prettier
+- Reformatted source files to conform to new linting rules
+
+### Fixed
+- Cleaned up config.py and prompts.py: removed stale file references from exclusion lists
+
+## 1.0.0 (2026-03-25)
+### Added
+- Initial release of gitops_summary package
+- Git commit message generation from diffs using AWS Bedrock (Claude)
+- Weekly development summary generation from commit history
+- GitLab epic tracking: setup, status, update, and map workflows
+- CLI entry point (`gitops-summary`)
+- Interactive commit workflow with staging, review, and optional push
+- README with installation and usage instructions
