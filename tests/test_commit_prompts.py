@@ -17,8 +17,8 @@ class CommitPromptTests(unittest.TestCase):
         prompt = build_prompt("M  src/app.py", "diff --git a/src/app.py b/src/app.py")
 
         self.assertIn("First line: one concise git commit subject", prompt)
-        self.assertIn("include a 1-3 sentence executive summary paragraph", prompt)
-        self.assertIn("Do write a real commit message with subject line, summary paragraph", prompt)
+        self.assertIn("Optional body: after one blank line", prompt)
+        self.assertIn("Do NOT write an executive summary", prompt)
         self.assertIn("Start directly with the commit subject line", prompt)
 
     def test_build_commit_retry_prompt_mentions_invalid_answer(self) -> None:
@@ -66,12 +66,22 @@ Backend:
 
         self.assertTrue(looks_like_commit_message(commit_message))
 
+    def test_looks_like_commit_message_rejects_executive_summary_body(self) -> None:
+        commit_message = """Tighten commit generation prompt
+
+This change restores the original commit message body format.
+
+- Add system prompt for commit-only responses
+"""
+
+        self.assertFalse(looks_like_commit_message(commit_message))
+
     def test_build_fallback_commit_message_for_single_file(self) -> None:
         message = build_fallback_commit_message("## main\nM  src/gitops_summary/commit.py")
 
         self.assertEqual(
             message,
-            "Update commit.py\n\nModified:\n- src/gitops_summary/commit.py",
+            "Update commit.py\n\n- Update src/gitops_summary/commit.py",
         )
 
     def test_build_fallback_commit_message_for_multiple_files(self) -> None:
@@ -81,7 +91,9 @@ Backend:
 
         self.assertEqual(
             message,
-            "Update 2 files in src\n\nModified:\n- src/gitops_summary/commit.py\n- src/gitops_summary/prompts.py",
+            "Update 2 files in src\n\n"
+            "- Update src/gitops_summary/commit.py\n"
+            "- Update src/gitops_summary/prompts.py",
         )
 
     def test_build_fallback_commit_subject_for_multiple_files(self) -> None:
@@ -96,7 +108,7 @@ Backend:
 
         self.assertEqual(
             message,
-            "Rename old_name.py to new_name.py\n\nModified:\n- new_name.py — renamed from old_name.py",
+            "Rename old_name.py to new_name.py\n\n- Rename old_name.py to new_name.py",
         )
 
     def test_sanitize_commit_response_strips_planning_language_but_keeps_commit(self) -> None:
@@ -127,10 +139,8 @@ Improve document sync flow
 
         self.assertTrue(looks_like_commit_message(response))
 
-    def test_looks_like_commit_message_allows_phase_in_real_commit_subject(self) -> None:
+    def test_looks_like_commit_message_allows_phase_in_real_commit_subject_with_bullets(self) -> None:
         response = """Implement Phase 1 MVP with local ingestion and in-memory search
-
-This commit delivers the initial MVP implementation.
 
 - Define Pydantic models for request and response schemas
 """
@@ -156,7 +166,6 @@ Backend:
         self.assertEqual(
             message,
             "Improve document sync flow\n\n"
-            "This change tightens ingestion validation and cleans up sync behavior.\n\n"
             "- Add retry handling in sync worker\n"
             "- Update API validation for ingest requests",
         )
@@ -177,7 +186,6 @@ Improves validation around uploads and sync retries.
         self.assertEqual(
             message,
             "Update 2 files in backend\n\n"
-            "Improves validation around uploads and sync retries.\n\n"
             "- Add retry handling in sync worker\n"
             "- Update API validation for ingest requests",
         )

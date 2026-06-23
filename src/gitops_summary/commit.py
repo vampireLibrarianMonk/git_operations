@@ -22,28 +22,10 @@ from .prompts import (
     build_fallback_commit_message,
     build_prompt,
     clean_commit_response,
+    coerce_commit_message,
     looks_like_commit_message,
 )
 from .ui import prompt_yes_no
-
-
-def _has_exec_summary_and_files(message: str) -> bool:
-    """Check if message has subject + executive paragraph + Modified/New file list."""
-    lines = message.strip().splitlines()
-    if len(lines) < 4:
-        return False
-    # Subject, blank, then paragraph text before file sections
-    if lines[1].strip() != "":
-        return False
-    has_files = any(ln.strip().startswith(("Modified:", "New:")) for ln in lines)
-    # Executive paragraph: non-empty, non-bullet lines between blank and file section
-    for ln in lines[2:]:
-        stripped = ln.strip()
-        if stripped.startswith(("Modified:", "New:", "Deleted:")):
-            break
-        if stripped and not stripped.startswith(("-", "*", "•")):
-            return has_files
-    return False
 
 
 def commit_workflow() -> int:
@@ -187,21 +169,7 @@ def commit_workflow() -> int:
     )
     try:
         print("[git-commit-summary] Sending request to Bedrock...")
-        message = None
-        best_candidate = None
-        for attempt in range(3):
-            candidate = call_bedrock(prompt, system_prompt=COMMIT_SYSTEM_PROMPT)
-            cleaned_candidate = clean_commit_response(candidate)
-            if _has_exec_summary_and_files(cleaned_candidate):
-                message = cleaned_candidate
-                break
-            # Keep the best we've seen
-            if best_candidate is None and looks_like_commit_message(cleaned_candidate):
-                best_candidate = cleaned_candidate
-            if attempt < 2:
-                print(f"[git-commit-summary] Retrying for better format (attempt {attempt + 2}/3)...")
-        if message is None:
-            message = best_candidate or clean_commit_response(candidate)
+        message = call_bedrock(prompt, system_prompt=COMMIT_SYSTEM_PROMPT)
         if not looks_like_commit_message(message):
             print("[git-commit-summary] Model returned non-commit output, retrying with stricter instructions...")
             retry_prompt = build_commit_retry_prompt(
@@ -211,15 +179,24 @@ def commit_workflow() -> int:
                 is_initial_commit=initial_commit,
                 invalid_response=message,
             )
-            raw_retry = call_bedrock(retry_prompt, system_prompt=COMMIT_SYSTEM_PROMPT)
-            message = clean_commit_response(raw_retry)
+            message = call_bedrock(retry_prompt, system_prompt=COMMIT_SYSTEM_PROMPT)
     except Exception as exc:
         print(f"Bedrock request failed: {exc}", file=sys.stderr)
         return 1
 
+    message = clean_commit_response(message)
     if not looks_like_commit_message(message):
-        print("[git-commit-summary] Falling back to deterministic commit message...")
-        message = build_fallback_commit_message(status, is_initial_commit=initial_commit)
+        print("[git-commit-summary] Converting model output into commit message format...")
+        coerced_message = coerce_commit_message(
+            message,
+            status,
+            is_initial_commit=initial_commit,
+        )
+        if looks_like_commit_message(coerced_message):
+            message = coerced_message
+        else:
+            print("[git-commit-summary] Falling back to deterministic commit message...")
+            message = build_fallback_commit_message(status, is_initial_commit=initial_commit)
     print(message)
 
     if not prompt_yes_no("Use this message to create a commit?"):

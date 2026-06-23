@@ -9,11 +9,7 @@ COMMIT_SYSTEM_PROMPT = """You write git commit messages for software repositorie
 
 Return only a valid commit message.
 - First line: a concise subject line in imperative mood, ideally 50-72 characters.
-- Body format: after a blank line, include one short executive-summary paragraph (an abstract of the work done).
-- After the summary paragraph, include a blank line then file sections.
-- Group files under "Modified:" and "New:" headings (omit a heading if that category has no files).
-- Under each heading, list files as bullets: "- filename — micro-summary of changes"
-- The micro-summary for each file should be one short phrase describing what changed.
+- Optional body: after a blank line, include short bullet points beginning with '- '.
 - Use only facts supported by the provided git status and diff.
 - Never write project reviews, implementation assessments, phase alignment notes, TODO lists, or advice.
 - Never say things like 'Based on the implementation plan', 'here are my observations', 'overall', or 'let me know'.
@@ -205,34 +201,28 @@ def build_fallback_commit_message(status: str, is_initial_commit: bool = False) 
 
     subject = build_fallback_commit_subject(status, is_initial_commit=is_initial_commit)
 
-    modified = []
-    new = []
+    bullets = []
     for entry in entries[:12]:
         action = entry["action"]
         path = entry["path"]
         new_path = entry.get("new_path") or ""
 
         if action == "add":
-            new.append(f"- {path}")
+            bullets.append(f"- Add {path}")
         elif action == "rename":
-            modified.append(f"- {new_path} — renamed from {path}")
+            bullets.append(f"- Rename {path} to {new_path}")
         elif action == "delete":
-            modified.append(f"- {path} — deleted")
+            bullets.append(f"- Remove {path}")
         else:
-            modified.append(f"- {path}")
+            bullets.append(f"- Update {path}")
 
     remaining = len(entries) - 12
-    sections = []
-    if modified:
-        sections.append("Modified:\n" + "\n".join(modified))
-    if new:
-        sections.append("New:\n" + "\n".join(new))
     if remaining > 0:
-        sections.append(f"({remaining} additional file(s) not listed)")
+        bullets.append(f"- Update {remaining} additional file(s)")
 
-    if not sections:
+    if not bullets:
         return subject
-    return f"{subject}\n\n" + "\n\n".join(sections)
+    return f"{subject}\n\n" + "\n".join(bullets)
 
 
 def build_prompt(
@@ -257,44 +247,22 @@ def build_prompt(
             " 'updated' or 'modified' unless the diff clearly requires that wording.\n"
         )
 
-    # Build a manifest of all changed files so the model has an explicit checklist.
-    status_lines = [line for line in status.split("\n") if line.strip()]
-    file_count = len(status_lines)
-
-    changed_files = []
-    for line in status_lines:
-        # git status -sb first line is branch info (starts with ##), skip it
-        if line.startswith("##"):
-            continue
-        # Extract filename from status line (format: "XY filename" or "XY old -> new")
-        parts = line.strip()
-        if len(parts) > 3:
-            changed_files.append(parts[3:].strip())
-
-    files_manifest_section = ""
-    if changed_files:
-        manifest_list = "\n".join(f"  - {f}" for f in changed_files)
-        files_manifest_section = f"\n\nALL CHANGED FILES ({len(changed_files)} total — each must be addressed in the commit body):\n" f"{manifest_list}\n"
+    # Count files from status to adjust detail level for larger commits.
+    file_count = len([line for line in status.split("\n") if line.strip()])
 
     if file_count > 30:
         format_instructions = (
             "FORMAT FOR LARGE COMMITS (30+ files):\n"
             "1) First line: one concise git commit subject in imperative mood, max 72 characters, no trailing period.\n"
-            "2) Body: after one blank line, include a 2-4 sentence executive summary paragraph (an abstract of the work done).\n"
-            "3) After another blank line, list files grouped under 'Modified:' and 'New:' headings.\n"
-            "4) Omit a heading if that category has no files.\n"
-            "5) Each file bullet: '- path/to/file — short phrase describing what changed'\n"
-            "6) For large commits you may summarize groups of related files on one bullet.\n"
+            "2) Optional body: after one blank line, include 3-6 bullets grouped by major component/theme.\n"
+            "3) Each bullet must begin with '- ' and mention specific files, functions, classes, or behavior changes.\n"
         )
     else:
         format_instructions = (
             "FORMAT:\n"
             "1) First line: one concise git commit subject in imperative mood, max 72 characters, no trailing period.\n"
-            "2) Body: after one blank line, include a 1-3 sentence executive summary paragraph (an abstract of the work done).\n"
-            "3) After another blank line, list files grouped under 'Modified:' and 'New:' headings.\n"
-            "4) Omit a heading if that category has no files.\n"
-            "5) Each file bullet: '- path/to/file — short phrase describing what changed'\n"
-            "6) Bullets must include concrete technical details from the diff.\n"
+            "2) Optional body: after one blank line, include 1-4 bullets beginning with '- '.\n"
+            "3) Bullets must include concrete technical details, not generic summaries.\n"
         )
 
     return (
@@ -326,8 +294,7 @@ def build_prompt(
         "OUTPUT FORMAT RULES:\n"
         "- Output must be plain text with no markdown formatting (no ```, no headers, no bold).\n"
         "- Output ONLY the commit message text itself.\n"
-        "- Do write a real commit message with subject line, summary paragraph, and optional bullets.\n"
-        "- Do NOT write a standalone implementation review, project assessment, or plan status update.\n"
+        "- Do NOT write an executive summary, implementation review, project assessment, or plan status update.\n"
         "- Do NOT include phrases like 'Here is the commit message:' or 'Executive Summary:'.\n"
         "- Do NOT wrap output in code blocks or markdown.\n"
         "- Do NOT echo back the git status or git diff.\n"
@@ -339,7 +306,6 @@ def build_prompt(
         "Git diff:\n"
         f"{diff}"
         f"{new_files_section}"
-        f"{files_manifest_section}"
     )
 
 
@@ -484,15 +450,13 @@ def coerce_commit_message(response: str, status: str, is_initial_commit: bool = 
         subject = _truncate_commit_subject(narrative_lines[0])
         summary_lines = narrative_lines[1:]
 
-    body_parts = []
-    if summary_lines:
-        body_parts.append(" ".join(summary_lines))
-    if bullets:
-        body_parts.append("\n".join(bullets[:8]))
+    body_bullets = bullets[:8]
+    if not body_bullets:
+        body_bullets = [f"- {line}" for line in summary_lines[:4]]
 
-    if not body_parts:
+    if not body_bullets:
         return subject
-    return f"{subject}\n\n" + "\n\n".join(body_parts)
+    return f"{subject}\n\n" + "\n".join(body_bullets)
 
 
 def looks_like_commit_message(response: str) -> bool:
@@ -529,6 +493,12 @@ def looks_like_commit_message(response: str) -> bool:
     )
     if any(first_line.lower().startswith(prefix) for prefix in disallowed_prefixes):
         return False
+
+    body_lines = cleaned.splitlines()[1:]
+    for line in body_lines:
+        stripped = line.strip()
+        if stripped and not stripped.startswith(("-", "*", "•")):
+            return False
 
     return True
 
