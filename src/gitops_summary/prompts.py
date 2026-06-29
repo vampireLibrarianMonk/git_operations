@@ -9,10 +9,17 @@ COMMIT_SYSTEM_PROMPT = """You write git commit messages for software repositorie
 
 Return only a valid commit message.
 - First line: a concise subject line in imperative mood, ideally 50-72 characters.
-- Optional body: after a blank line, include short bullet points beginning with '- '.
+  * Start with an imperative verb (Add, Fix, Update, Remove, Refactor, Implement, etc.)
+  * NEVER start with "This commit", "In this commit", "Commit subject:", or similar narrative framing.
+- Body (required for multi-file changes): after ONE blank line, include focused bullet points beginning with '- '.
+  * Group bullets by THEME or LOGICAL CHANGE, not per-file.
+  * Each bullet describes WHAT changed and WHY (briefly), referencing specific functions, classes, or behaviors.
+  * Do NOT produce a file manifest. Do NOT label lines with "Modified:", "New:", "[NEW]", or "[DELETED]".
+  * Limit body to 3-6 bullets maximum. Consolidate related changes into a single bullet.
 - Use only facts supported by the provided git status and diff.
 - Never write project reviews, implementation assessments, phase alignment notes, TODO lists, or advice.
 - Never say things like 'Based on the implementation plan', 'here are my observations', 'overall', or 'let me know'.
+- Never include narrative paragraphs between subject and bullets. Body is ONLY bullets.
 - Never ask follow-up questions.
 """
 
@@ -27,6 +34,11 @@ _INVALID_COMMIT_PHRASES = (
     "missing/todo",
     "let me know if you need",
     "alignment with",
+    "this commit",
+    "in this commit",
+    "commit subject:",
+    "commit subject",
+    "executive summary",
 )
 
 _STRIP_COMMIT_LINES_CONTAINING = (
@@ -35,6 +47,11 @@ _STRIP_COMMIT_LINES_CONTAINING = (
     "here are my observations",
     "let me review",
     "let me know if you need",
+    "this commit includes",
+    "this commit adds",
+    "this commit updates",
+    "this commit represents",
+    "this commit contains",
 )
 
 _STRIP_COMMIT_LINE_PREFIXES = (
@@ -45,6 +62,13 @@ _STRIP_COMMIT_LINE_PREFIXES = (
     "overall ",
     "the frontend contains:",
     "the backend contains:",
+    "modified:",
+    "new:",
+    "new files:",
+    "modified files:",
+    "in this commit",
+    "in the ",
+    "commit subject:",
 )
 
 _SKIP_COMMIT_SECTION_PREFIXES = (
@@ -254,43 +278,45 @@ def build_prompt(
         format_instructions = (
             "FORMAT FOR LARGE COMMITS (30+ files):\n"
             "1) First line: one concise git commit subject in imperative mood, max 72 characters, no trailing period.\n"
-            "2) Optional body: after one blank line, include 3-6 bullets grouped by major component/theme.\n"
-            "3) Each bullet must begin with '- ' and mention specific files, functions, classes, or behavior changes.\n"
+            "   Start with an imperative verb: Add, Fix, Update, Remove, Refactor, Implement, etc.\n"
+            "2) Body (required): after ONE blank line, include 4-6 bullets grouped by THEME or LOGICAL CHANGE.\n"
+            "3) Each bullet begins with '- ' and describes a cohesive change across one or more files.\n"
+            "4) Consolidate related file changes into a single bullet. Do NOT list one bullet per file.\n"
         )
     else:
         format_instructions = (
             "FORMAT:\n"
             "1) First line: one concise git commit subject in imperative mood, max 72 characters, no trailing period.\n"
-            "2) Optional body: after one blank line, include 1-4 bullets beginning with '- '.\n"
-            "3) Bullets must include concrete technical details, not generic summaries.\n"
+            "   Start with an imperative verb: Add, Fix, Update, Remove, Refactor, Implement, etc.\n"
+            "2) Body: after ONE blank line, include 2-4 bullets beginning with '- '.\n"
+            "3) Each bullet describes a concrete technical change (function names, class names, behavior changes).\n"
+            "4) Group related changes into one bullet. Do NOT produce a per-file manifest.\n"
         )
 
     return (
         "You are generating ONE git commit message for the staged changes below.\n"
         f"{format_instructions}\n\n"
-        "CRITICAL RULES FOR ACCURACY:\n"
-        "- EVERY file that appears in the diff with actual code/content changes MUST be mentioned "
-        "in the commit message body. Do not focus only on the largest or newest file.\n"
-        "- SKIP files that have no visible changes in the diff "
-        "(e.g., whitespace-only or formatting-only changes with no actual code diff). "
-        "Do NOT list them or say 'No changes'.\n"
-        "- EXTRACT SPECIFIC DETAILS from the diff: function names, variable names, class names, "
-        "parameter changes, new imports, removed code, renamed identifiers, etc.\n"
-        "- NEVER use generic phrases like 'updated logic', 'improved functionality', 'made changes', "
-        "'various updates', 'minor updates', 'minor improvements', or 'refactored code' without specifying WHAT was changed.\n"
-        "- For each file WITH ACTUAL CHANGES, cite the ACTUAL changes visible in the diff:\n"
-        "  * If a function was added: name it (e.g., 'Added validate_input() function')\n"
-        "  * If a class was added: name it (e.g., 'Added CVEDetailPattern class')\n"
-        "  * If parameters changed: specify them (e.g., 'Added timeout parameter to fetch_data()')\n"
-        "  * If logic changed: describe the specific change (e.g., 'Changed retry count from 3 to 5')\n"
-        "  * If imports added/removed: list them (e.g., 'Added import for datetime module')\n"
-        "  * If error handling changed: specify how (e.g., 'Added try/except for ConnectionError')\n"
-        "- If a file is renamed, mention both old and new names.\n"
-        "- If a file is deleted, mark it as [DELETED] and briefly note what it contained.\n"
-        "- NEVER mention these files under any circumstance: .venv/.gitlab_epic_config.json.\n"
-        "- IMPORTANT: Only label a file as '[NEW]' if it appears in the NEWLY ADDED FILES list below. "
-        "Files not in that list are modifications to existing files, NOT new files.\n"
-        "- Only summarize what is ACTUALLY visible in the diff - do not infer or assume.\n\n"
+        "SUBJECT LINE RULES:\n"
+        "- MUST start with an imperative verb (Add, Fix, Update, Remove, Refactor, Implement, Introduce, etc.)\n"
+        "- NEVER start with 'This commit', 'In this commit', 'Commit subject:', or any narrative framing.\n"
+        "- Max 72 characters. No trailing period.\n\n"
+        "BODY RULES:\n"
+        "- Body is ONLY bullet points. No narrative paragraphs between subject and bullets.\n"
+        "- Group bullets by THEME (what logical change was made), not by file.\n"
+        "- Each bullet should describe WHAT changed and cite specifics: function names, class names,\n"
+        "  parameter changes, new behavior, removed behavior.\n"
+        "- Do NOT produce a file manifest (no 'Modified:', 'New:', '[NEW]', '[DELETED]' labels).\n"
+        "- Do NOT write one bullet per file. Consolidate related changes.\n"
+        "- NEVER use generic phrases like 'updated logic', 'improved functionality', 'made changes',\n"
+        "  'various updates', 'minor updates', 'minor improvements', or 'refactored code' without\n"
+        "  specifying WHAT was changed.\n"
+        "- If files were deleted, mention what was removed in a bullet without '[DELETED]' markup.\n\n"
+        "ACCURACY RULES:\n"
+        "- EXTRACT SPECIFIC DETAILS from the diff: function names, variable names, class names,\n"
+        "  parameter changes, new imports, removed code, renamed identifiers.\n"
+        "- Only summarize what is ACTUALLY visible in the diff - do not infer or assume.\n"
+        "- SKIP files that have no visible changes (whitespace-only or formatting-only).\n"
+        "- NEVER mention these files: .venv/.gitlab_epic_config.json.\n\n"
         "OUTPUT FORMAT RULES:\n"
         "- Output must be plain text with no markdown formatting (no ```, no headers, no bold).\n"
         "- Output ONLY the commit message text itself.\n"
@@ -299,6 +325,7 @@ def build_prompt(
         "- Do NOT wrap output in code blocks or markdown.\n"
         "- Do NOT echo back the git status or git diff.\n"
         "- Do NOT mention implementation plans, phases, alignment, observations, missing work, or TODOs.\n"
+        "- Do NOT include narrative paragraphs like 'This commit adds...' or 'In this commit...'.\n"
         "- Start directly with the commit subject line.\n\n"
         f"{initial_commit_section}"
         "Git status:\n"
@@ -490,14 +517,25 @@ def looks_like_commit_message(response: str) -> bool:
         "missing/todo",
         "overall",
         "observations",
+        "modified:",
+        "new:",
+        "new files:",
+        "modified files:",
     )
     if any(first_line.lower().startswith(prefix) for prefix in disallowed_prefixes):
         return False
 
     body_lines = cleaned.splitlines()[1:]
+    manifest_markers = ("modified:", "new:", "new files:", "modified files:", "deleted:")
     for line in body_lines:
         stripped = line.strip()
-        if stripped and not stripped.startswith(("-", "*", "•")):
+        if not stripped:
+            continue
+        # Reject manifest-style labels in the body
+        if any(stripped.lower().startswith(m) for m in manifest_markers):
+            return False
+        # Only bullet lines are allowed in the body
+        if not stripped.startswith(("-", "*", "•")):
             return False
 
     return True

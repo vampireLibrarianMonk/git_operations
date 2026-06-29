@@ -17,7 +17,7 @@ class CommitPromptTests(unittest.TestCase):
         prompt = build_prompt("M  src/app.py", "diff --git a/src/app.py b/src/app.py")
 
         self.assertIn("First line: one concise git commit subject", prompt)
-        self.assertIn("Optional body: after one blank line", prompt)
+        self.assertIn("Body: after ONE blank line", prompt)
         self.assertIn("Do NOT write an executive summary", prompt)
         self.assertIn("Start directly with the commit subject line", prompt)
 
